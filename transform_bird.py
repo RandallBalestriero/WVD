@@ -1,21 +1,11 @@
-import time
-import pickle
-import jax
 import numpy as np
 import sys
-sys.path.insert(0, "../")
+sys.path.insert(0, "../TheanoXLA")
 from scipy.io.wavfile import read
 
 import theanoxla
 import theanoxla.tensor as T
 from theanoxla import layers
-
-import matplotlib.pyplot as plt
-from matplotlib import interactive
-interactive(False)
-#https://github.com/google/jax/blob/master/jax/lib/xla_bridge.py
-from jax.lib import xla_client
-from sklearn.metrics import roc_auc_score, accuracy_score
 
 import argparse
 
@@ -23,28 +13,29 @@ parse = argparse.ArgumentParser()
 parse.add_argument('-L', type=int)
 args = parse.parse_args()
 
-# dataset
-wavs, labels, infos = theanoxla.datasets.load_freefield1010(subsample=2, n_samples=7000)
+# load dataset
+wavs, labels, infos = theanoxla.datasets.load_freefield1010(subsample=2)
 
-# variables
+# input variables (spectral correlation size
 L = args.L
-BS = 1
 
+signal = T.Placeholder((wavs.shape[1],), 'float32')
 
-signal = T.Placeholder((BS, wavs.shape[1]), 'float32')
-
+# compute the S transform or spectrogram
 if L > 0:
-    WVD = T.signal.wvd(T.expand_dims(signal, 1), 1024, L=L, hop=32)
+    WVD = T.signal.wvd(signal.reshape((1, 1, -1)), window=1024, L=L, hop=32)
 else:
-    WVD = T.signal.mfsc(T.expand_dims(signal, 1), 1024, 192, 80, 2, 44100/4, 44100/4)
+    WVD = T.signal.melspectrogram(signal.reshape((1, 1, -1)), window=1024, hop=192,
+                        n_filter=80, low_freq=10, high_freq=22050,
+                        nyquist=22050)
 
+# create the theano function working on cpu
 tf_func = theanoxla.function(signal, outputs=[WVD], backend='cpu')
 
-# transform the data
-
-for i, x in enumerate(theanoxla.utils.batchify(wavs, batch_size=BS,
-                                  option='continuous')):
-    print('before')
-    np.savez_compressed('/mnt/storage/rb42Data/SAVE/train_{}_{}.npz'.format(L, i), tf_func(x)[0])
+# transform each datum and save it
+savename = '/mnt/storage/rb42Data/SAVE/train_{}_{}.npz'
+for i, x in enumerate(wavs):
+    print(i)
+    np.savez_compressed(savename.format(L, i), tf_func(x)[0])
 
 
