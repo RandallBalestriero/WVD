@@ -14,7 +14,7 @@ parse.add_argument('-L', type=int)
 args = parse.parse_args()
 
 # load dataset
-wavs, labels, infos = theanoxla.datasets.load_freefield1010(subsample=2)
+wavs, labels = theanoxla.datasets.load_freefield1010(subsample=2)
 
 # input variables (spectral correlation size
 L = args.L
@@ -28,14 +28,14 @@ else:
     WVD = T.signal.melspectrogram(signal.reshape((1, 1, -1)), window=1024, hop=192,
                         n_filter=80, low_freq=10, high_freq=22050,
                         nyquist=22050)
-
+print(WVD.shape)
 # create the theano function working on cpu
-tf_func = theanoxla.function(signal, outputs=[WVD], backend='cpu')
+tf_func = theanoxla.function(signal, outputs=[WVD[0, 0]], backend='cpu')
 
 # transform each datum and save it
-savename = '/mnt/storage/rb42Data/SAVE/train_{}_{}.npz'
+savename = '/mnt/storage/rb42Data/SAVE/train_{}_{:04d}.npz'
 for i, x in enumerate(wavs):
     print(i)
-    np.savez_compressed(savename.format(L, i), tf_func(x)[0])
+    np.savez_compressed(savename.format(L, i), tf_func(x))
 
 
