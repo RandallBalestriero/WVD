@@ -25,7 +25,11 @@ time = T.linspace(-5, 5, 100)
 f1 = T.Placeholder((), 'float32')
 f2 = T.Placeholder((), 'float32')
 
-filter = 2 *(f1 * T.sinc(time*f1) - f2 * T.sinc(time*f2)) * T.signal.hanning(100)
+def sinc_bandpass(time, f0, f1):
+    high = f1 * T.sinc(time * f1)
+    low = f2 * T.sinc(time * f2)
+    filter = 2 * (high - low) * T.signal.hanning(time.shape[-1])
+    return filter
 
 get_filter = function(f1, f2, outputs=[filter])
 

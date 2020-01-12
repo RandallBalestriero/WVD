@@ -1,79 +1,60 @@
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.metrics import roc_auc_score
 
+J = 40
+BS = 5
+sinc_bins = 512
+ax1 = plt.subplot(121)
+ax2 = plt.subplot(122)
 
-file1 = open('saveit_0.pkl','rb')
-file2 = open('saveit_4.pkl','rb')
-file3 = open('saveit_8.pkl','rb')
+colors = ['r', 'g', 'b']
 
-data1 = pickle.load(file1)
-data2 = pickle.load(file2)
-data3 = pickle.load(file3)
+for color, option in zip(colors, ['sinc', 'melspec', 'wvd8']):
+    file1 = open('saveit_0.pkl','rb')
+    f = np.load('save_bird_{}_{}_{}_{}.npz'.format(BS, option, J, sinc_bins),
+                allow_pickle=True)
 
-file1.close()
-file2.close()
-file3.close()
+    train = f['train']
+    test = f['test']
+    valid = f['valid']
+    rep = f['rep']
+    filter = f['filter']
+    y_valid = f['y_valid']
+    y_test = f['y_test']
 
-DATA1 = np.array(data1[1::3]) * 100
-DATA2 = np.array(data2[1::4]) * 100
-DATA3 = np.array(data3[1::4]) * 100
+    y_test = y_test[:len(test[-1][0])]
+    y_valid = y_valid[:len(valid[-1][0])]
 
-TDATA1 = np.array(data1[0::3])
-TDATA2 = np.array(data2[0::4])
-TDATA3 = np.array(data3[0::4])
+    for i in range(len(test)):
+        test[i] = [roc_auc_score(y_test, test[i][0]), test[i][1].mean()]
+    test = np.array(test)
 
-FDATA1 = np.array(data1[2::3])
-FDATA2 = np.array(data2[2::4])
-FDATA3 = np.array(data3[2::4])
+    for i in range(len(valid)):
+        valid[i] = [roc_auc_score(y_valid, valid[i][0]), valid[i][1].mean()]
+    valid = np.array(valid)
 
-
-plt.figure(figsize=(6,4))
-
-plt.subplot(121)
-plt.title('Accu')
-plt.plot(TDATA1[:,1], 'b')
-plt.plot(TDATA2[:,1], 'g')
-plt.plot(TDATA3[:,1], 'r')
-
-plt.subplot(122)
-plt.title('Loss (CE)')
-plt.plot(TDATA1[:,0], 'b')
-plt.plot(TDATA2[:,0], 'g')
-plt.plot(TDATA3[:,0], 'r')
-plt.savefig('accu_loss.png')
-plt.close()
-
-plt.figure(figsize=(6,4))
-plt.subplot(121)
-plt.title('AUC')
-plt.plot(DATA1[:,1], 'b')
-plt.plot(DATA2[:,1], 'g')
-plt.plot(DATA3[:,1], 'r')
-
-plt.subplot(122)
-plt.title('Accuracy')
-plt.plot(DATA1[:,0], 'b')
-plt.plot(DATA2[:,0], 'g')
-plt.plot(DATA3[:,0], 'r')
-plt.savefig('auc_accu.png')
-plt.close()
+    ax1.plot(valid[:, 0], c=color)
+    ax2.plot(test[:, 0], c=color)
 
 plt.figure()
-plt.subplot(121)
-plt.imshow(data2[2][0,0], aspect='auto')
-plt.subplot(122)
-plt.imshow(data2[-1][0,0], aspect='auto')
-plt.savefig('filter.png')
-plt.close()
+option = 'wvd8'
+f = np.load('save_bird_{}_{}_{}_{}.npz'.format(BS, option, J, sinc_bins),
+                allow_pickle=True)
+filter = f['filter']
+
 
 plt.figure()
-plt.subplot(131)
-plt.imshow(FDATA1[-1, 0], aspect='auto')
-plt.subplot(132)
-plt.imshow(FDATA2[-1, 0], aspect='auto')
-plt.subplot(133)
-plt.imshow(FDATA3[-1, 0], aspect='auto')
-plt.savefig('repr.png')
-plt.close()
+for i in range(24):
+    plt.subplot(6, 4, i + 1)
+    plt.imshow(filter[-1][2][i])
+
+plt.figure()
+for i in range(24):
+    plt.subplot(6, 4, i + 1)
+    plt.imshow(filter[0][2][i])
+plt.suptitle('init')
+
+plt.show()
 
