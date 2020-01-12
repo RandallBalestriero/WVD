@@ -28,6 +28,8 @@ parse.add_argument('-BS', type=int, default=16)
 parse.add_argument('-sinc_bins', type=int, default=512)
 parse.add_argument('-support', type=int, default=32)
 parse.add_argument('-LR', type=float, default=0.001)
+parse.add_argument('-wvd_path', type=str, default='SAVE/')
+
 args = parse.parse_args()
 
 
@@ -38,7 +40,7 @@ wavs /= wavs.max(1, keepdims=True)
 
 # get shape
 if 'wvd' in args.option:
-    wavs = np.sort(glob.glob('SAVE/train_{}*.npz'.format(int(args.option[-1]))))
+    wavs = np.sort(glob.glob(args.wvd_path + 'train_{}*.npz'.format(int(args.option[-1]))))
     input_shape = (args.BS,) + np.load(wavs[0])['arr_0'].shape
     print(input_shape)
 else:
