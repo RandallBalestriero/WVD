@@ -4,6 +4,13 @@ sys.path.insert(0, "../TheanoXLA")
 import theanoxla
 import theanoxla.tensor as T
 from theanoxla import layers
+from scipy.signal import morlet
+
+
+def morlet_filter_bank(N, J, Q):
+    scales = 2**(-np.arange(J*Q)/Q)
+    filters = [morlet(N, s=s) for s in scales]
+    return np.stack(filters)
 
 def gauss_2d(N, m, S):
     time = T.linspace(-5, 5, N)
@@ -39,13 +46,15 @@ def small_model_bird(layer, deterministic):
 
 def scattering_model_bird(layer, deterministic):
     # then standard deep network
+    #layer.append(layers.Pool2D(layer[-1], (1, 5)))
     layer.append(layers.Conv2D(layer[-1], 16, (5, 5)))
     layer.append(layers.BatchNormalization(layer[-1], [0, 2, 3], deterministic))
     layer.append(layers.Activation(layer[-1], T.leaky_relu))
 
-    features = T.concatenate([layer[-1].mean(3).flatten2d(),
-                              layer[0].mean(3).flatten2d()], 1)
-
+    N = layer[-1].shape[0]
+    features = T.concatenate([layer[-1].mean(3).reshape([N, -1]),
+                              layer[0].mean(3).reshape([N, -1])], 1)
+    print(features.shape)
     layer.append(layers.Dense(features, 256))
     layer.append(layers.BatchNormalization(layer[-1], [0], deterministic))
     layer.append(layers.Activation(layer[-1], T.leaky_relu))

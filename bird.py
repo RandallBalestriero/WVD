@@ -25,11 +25,11 @@ parse.add_argument('-option', type=str, choices=['melspec', 'spec', 'sinc',
                                                  'wvd8', 'wvd16', 'wvd32'])
 parse.add_argument('-J', type=int)
 parse.add_argument('-BS', type=int, default=16)
-parse.add_argument('-sinc_bins', type=int, default=512)
+parse.add_argument('-bins', type=int, default=512)
 parse.add_argument('-support', type=int, default=32)
 parse.add_argument('-LR', type=float, default=0.001)
 parse.add_argument('-wvd_path', type=str, default='SAVE/')
-
+parse.add_argument('-model', type=str, default='base')
 args = parse.parse_args()
 
 
@@ -73,6 +73,16 @@ elif args.option == 'melspec':
                                      window=1024, hop=192, n_filter=args.J,
                                      low_freq=10, high_freq=22050,
                                      nyquist=22050)]
+elif args.option == 'morlet':
+    filters = utils.morlet_filter_bank(args.bins, args.J, args.Q)
+    # normalize
+    normed_filters = apod_filters/(apod_filters**2.).sum(1, keepdims=True)
+    normed_filters = np.expand_dims(normed_filters, 1)
+    layer = [layers.Conv1D(input.reshape((args.BS, 1, -1)), W=normed_filters.real(),
+                           strides=256, W_shape=normed_filters.shape, b=None)]
+    layer.append(layers.Conv1D(input.reshape((args.BS, 1, -1)), W=normed_filters.imag(),
+                           strides=256, W_shape=normed_filters.shape, b=None)
+    layer.append(T.sqrt(layer[-1]**2 + layer[-2]**2))
 elif 'wvd' in args.option:
     NN = args.support
     # hop size
@@ -98,16 +108,16 @@ elif args.option == 'sinc':
     f0 = T.abs(freq[:, 0])
     f1 = f0+T.abs(freq[:, 1])
     # sampled the bandpass filters
-    time = T.linspace(-5, 5, args.sinc_bins).reshape((-1, 1))
+    time = T.linspace(-5, 5, args.bins).reshape((-1, 1))
     filters = T.transpose(T.expand_dims(T.signal.sinc_bandpass(time, f0, f1), 1),
                           [2, 1, 0])
     # apodize
-    apod_filters = filters * T.signal.hanning(args.sinc_bins)
+    apod_filters = filters * T.signal.hanning(args.bins)
     # normalize
     normed_filters = apod_filters/(apod_filters**2.).sum(2, keepdims=True)
     layer = [layers.Conv1D(input.reshape((args.BS, 1, -1)), W=normed_filters,
                            strides=256, n_filters=args.J,
-                           filter_length=args.sinc_bins, b=None)]
+                           filter_length=args.bins, b=None)]
     layer[-1].add_variable(freq)
     layer.append(T.expand_dims(layer[-1], 1))
     layer.append(layers.Activation(layer[-1], T.abs))
@@ -117,7 +127,13 @@ elif args.option == 'sinc':
 
 # then standard deep network
 layer.append(layers.Activation(layer[-1]+0.1, T.log))
-utils.model_bird(layer, deterministic)
+if args.model == 'base':
+    utils.model_bird(layer, deterministic)
+elif args.model == 'small':
+    utils.small_model_bird(layer, deterministic)
+else:
+    utils.scattering_model_bird(layer, deterministic)
+
 
 for l in layer:
     print(l.shape)
@@ -201,8 +217,8 @@ for epoch in range(100):
     else:
         FILTER = []
 
-    np.savez('save_bird_{}_{}_{}_{}.npz'.format(args.BS, args.option, args.J,
-                                       args.sinc_bins), train=TRAIN,
+    np.savez('save_bird_{}_{}_{}_{}_{}.npz'.format(args.BS, args.option, args.J,
+                                       args.bins, args.model), train=TRAIN,
              test=TEST, valid=VALID, rep=REP, filter=FILTER,
              y_valid = labels_valid, y_test=labels_test)
     lr.update()
