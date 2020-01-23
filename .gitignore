@@ -1,5 +1,7 @@
 *.pkl
+*.zip
 *.jpg
 *.png
 *.pyc
 *.npz
+*.output
