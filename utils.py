@@ -12,6 +12,7 @@ def morlet_filter_bank(N, J, Q):
     filters = [morlet(N, s=s) for s in scales]
     return np.stack(filters)
 
+
 def gauss_2d(N, m, S):
     time = T.linspace(-5, 5, N)
     x, y = T.meshgrid(time, time)
@@ -32,12 +33,14 @@ def create_transform(input, args):
         layer = [layers.Conv1D(input.reshape((args.BS, 1, -1)),
                                strides=args.bins//2,
                                W_shape=(args.J * args.Q, 1, args.bins), b=None)]
-        layer.append(layers.Activation(layer[-1].reshape(args.BS, q, args.J*args.Q, -1), T.abs))
+        layer.append(layers.Activation(
+            layer[-1].reshape(args.BS, q, args.J*args.Q, -1), T.abs))
     elif args.option == 'rawshort':
         layer = [layers.Conv1D(input.reshape((args.BS, 1, -1)),
                                strides=args.bins//16,
                                W_shape=(args.J * args.Q, 1, args.bins//8), trainable_b=False)]
-        layer.append(layers.Activation(layer[-1].reshape(args.BS, q, args.J*args.Q, -1), T.abs))
+        layer.append(layers.Activation(
+            layer[-1].reshape(args.BS, q, args.J*args.Q, -1), T.abs))
         layer.append(layers.Pool2D(layer[-1], (8, 8)))
     elif args.option == 'morlet':
         filters = morlet_filter_bank(args.bins, args.J, args.Q)
@@ -47,23 +50,29 @@ def create_transform(input, args):
         layer = [layers.Conv1D(input.reshape((args.BS, 1, -1)), W=filters.real,
                                strides=args.bins//2, W_shape=filters.shape, trainable_b=False)]
         layer.append(layers.Conv1D(input.reshape((args.BS, 1, -1)), W=filters.imag,
-                               strides=args.bins//2, W_shape=filters.shape, trainable_b=False))
+                                   strides=args.bins//2, W_shape=filters.shape, trainable_b=False))
         layer.append(T.sqrt(layer[-1]**2 + layer[-2]**2))
         layer.append(T.expand_dims(layer[-1], 1))
     elif args.option == 'wvd':
         B = (args.bins//2)//(args.J*args.Q)
         WVD = T.signal.wvd(input.reshape((args.BS, 1, -1)), window=args.bins, L=args.L,
                            hop=(args.bins // 2)//(B*2))
-    
+
         # extract patches
         patches = T.extract_image_patches(WVD, (B*2, B*2), hop=B)
         J = args.J*args.Q
         # gaussian parameters
-        cov = T.Variable(np.random.randn(J+1, 2, 2).astype('float32'), name='mean')
-        mean = T.Variable(np.zeros((J+1, 1, 2)).astype('float32'), name='cov')
+        vart = T.Variable(1+0.01*np.random.randn(J+1, 1).astype('float32'), name='var')
+        varf = T.Variable(1+0.01*np.random.randn(J+1, 1).astype('float32'), name='var')
+        cor = T.Variable(
+            0.1*np.random.randn(J+1, 1).astype('float32'), name='cor')
+        cov = T.concatenate(
+            [T.abs(vart), cor, cor, T.abs(varf)], 1).reshape((J+1, 2, 2))
+
+        mean = T.Variable(0.1*np.random.randn(J+1, 1,
+                                              2).astype('float32'), name='cov')
         # get the gaussian filters
-        ccov = cov.transpose([0, 2, 1]).matmul(cov) + T.eye(2) * 0.001
-        filter = gauss_2d(B*2, mean, ccov)
+        filter = gauss_2d(B*2, mean, cov)
         # apply the filters
         print(filter.shape, patches.shape)
         wvd = T.einsum('nkjab,kab->nkj', patches.squeeze(), filter)
@@ -72,7 +81,9 @@ def create_transform(input, args):
         layer[-1]._filter = filter
         layer[-1]._mean = mean
         layer[-1]._cov = cov
-        layer[-1].add_variable(cov)
+        layer[-1].add_variable(vart)
+        layer[-1].add_variable(varf)
+        layer[-1].add_variable(cor)
         layer[-1].add_variable(mean)
     elif args.option == 'sinc':
         # create the varianles
@@ -88,28 +99,29 @@ def create_transform(input, args):
         apod_filters = filters * T.signal.hanning(args.bins)
         # normalize
         normed_filters = apod_filters/(apod_filters**2.).sum(2, keepdims=True)
+        print(normed_filters.get({}))
         layer = [layers.Conv1D(input.reshape((args.BS, 1, -1)), W=normed_filters,
-                               strides=args.bins//2, b_shape=None,
+                               strides=args.bins//2, trainable_b=False, trainable_W=False,
                                W_shape=(args.Q*args.J, 1, args.bins))]
-        layers[-1]._freq = freq
+        layer[-1]._freq = freq
+        layer[-1]._filter = normed_filters
         layer[-1].add_variable(freq)
         layer.append(T.expand_dims(layer[-1], 1))
         layer.append(layers.Activation(layer[-1], T.abs))
     return layer
 
 
-
-
-
 def small_model_bird(layer, deterministic, c):
     # then standard deep network
     layer.append(layers.Conv2D(layer[-1], W_shape=(16, 1, 3, 3)))
-    layer.append(layers.BatchNormalization(layer[-1], [0, 2, 3], deterministic))
+    layer.append(layers.BatchNormalization(
+        layer[-1], [0, 2, 3], deterministic))
     layer.append(layers.Activation(layer[-1], T.leaky_relu))
     layer.append(layers.Pool2D(layer[-1], (3, 3)))
 
     layer.append(layers.Conv2D(layer[-1], W_shape=(32, 16, 3, 3)))
-    layer.append(layers.BatchNormalization(layer[-1], [0, 2, 3], deterministic))
+    layer.append(layers.BatchNormalization(
+        layer[-1], [0, 2, 3], deterministic))
     layer.append(layers.Activation(layer[-1], T.leaky_relu))
     layer.append(layers.Pool2D(layer[-1], (3, 3)))
 
@@ -122,12 +134,12 @@ def small_model_bird(layer, deterministic, c):
     return layer
 
 
-
 def scattering_model_bird(layer, deterministic, c):
     # then standard deep network
     #layer.append(layers.Pool2D(layer[-1], (1, 5)))
     layer.append(layers.Conv2D(layer[-1], 16, (5, 5)))
-    layer.append(layers.BatchNormalization(layer[-1], [0, 2, 3], deterministic))
+    layer.append(layers.BatchNormalization(
+        layer[-1], [0, 2, 3], deterministic))
     layer.append(layers.Activation(layer[-1], T.leaky_relu))
 
     N = layer[-1].shape[0]
@@ -143,30 +155,23 @@ def scattering_model_bird(layer, deterministic, c):
     return layer
 
 
-
-
-
-
-
 def model_bird(layer, deterministic, c):
     # then standard deep network
     layer.append(layers.Conv2D(layer[-1], W_shape=(16, 1, 3, 3)))
-    layer.append(layers.BatchNormalization(layer[-1], [0, 2, 3], deterministic))
+    layer.append(layers.BatchNormalization(
+        layer[-1], [0, 2, 3], deterministic))
     layer.append(layers.Activation(layer[-1], T.leaky_relu))
     layer.append(layers.Pool2D(layer[-1], (3, 3)))
 
     layer.append(layers.Conv2D(layer[-1], W_shape=(16, 16, 3, 3)))
-    layer.append(layers.BatchNormalization(layer[-1], [0, 2, 3], deterministic))
+    layer.append(layers.BatchNormalization(
+        layer[-1], [0, 2, 3], deterministic))
     layer.append(layers.Activation(layer[-1], T.leaky_relu))
     layer.append(layers.Pool2D(layer[-1], (2, 3)))
 
-    layer.append(layers.Conv2D(layer[-1], W_shape=(16, 16, 1, 3)))
-    layer.append(layers.BatchNormalization(layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Activation(layer[-1], T.leaky_relu))
-    layer.append(layers.Pool2D(layer[-1], (1, 2)))
-
-    layer.append(layers.Conv2D(layer[-1], W_shape=(16, 16, 3, 3)))
-    layer.append(layers.BatchNormalization(layer[-1], [0, 2, 3], deterministic))
+    layer.append(layers.Conv2D(layer[-1], W_shape=(32, 16, 3, 3)))
+    layer.append(layers.BatchNormalization(
+        layer[-1], [0, 2, 3], deterministic))
     layer.append(layers.Activation(layer[-1], T.leaky_relu))
     layer.append(layers.Pool2D(layer[-1], (1, 2)))
 
@@ -182,4 +187,3 @@ def model_bird(layer, deterministic, c):
 
     layer.append(layers.Dense(T.leaky_relu(layer[-1]), c))
     return layer
-

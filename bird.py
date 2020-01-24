@@ -29,7 +29,7 @@ parse.add_argument('--option', type=str, choices=['melspec', 'morlet', 'sinc',
 parse.add_argument('-J', type=int, default=5)
 parse.add_argument('-Q', type=int, default = 8)
 parse.add_argument('--bins', type=int, default=512)
-parse.add_argument('-BS', type=int, default=16)
+parse.add_argument('-BS', type=int, default=8)
 parse.add_argument('-L', type=int, default=1)
 parse.add_argument('-LR', type=float, default=0.001)
 parse.add_argument('--dataset', type=str, default='bird',
@@ -92,6 +92,8 @@ get_repr = theanoxla.function(input, outputs = [layer[0]])
 TRAIN, TEST, VALID, FILTER, REP, PROBA = [], [], [], [], [], []
 
 
+print(wavs_train.shape)
+
 for epoch in range(100):
 
     #### train part
@@ -99,6 +101,7 @@ for epoch in range(100):
     for x, y in theanoxla.utils.batchify(wavs_train, labels_train, batch_size=args.BS,
                                          option='random_see_all'):
         l.append(train(x, y, 0))
+        print(l[-1])
     print('FINALtrain', np.mean(l, 0))
     TRAIN.append(np.array(l))
 
@@ -106,7 +109,7 @@ for epoch in range(100):
     l = list()
     p = list()
     C = list()
-    r = list()
+#    r = list()
     cpt = 0
     for x, y in theanoxla.utils.batchify(wavs_valid, labels_valid, batch_size=args.BS,
                                          option='continuous'):
@@ -114,12 +117,12 @@ for epoch in range(100):
         C.append(a)
         l.append(b)
         p.append(c)
-        if cpt < 3:
-            r.append(np.array(get_repr(x)[0]))
-            cpt += 1
+#        if cpt < 3:
+#            r.append(np.array(get_repr(x)[0]))
+#            cpt += 1
 
     VALID.append([np.array(C), np.array(l)])
-    REP.append(np.concatenate(r))
+#    REP.append(np.concatenate(r))
     PROBA.append(np.concatenate(p))
     print('FINALvalid', np.mean(VALID[-1][1], 0))
 
@@ -142,14 +145,14 @@ for epoch in range(100):
     if 'wvd' == args.option:
         FILTER.append([layer[0]._mean.get({}), layer[0]._cov.get({}), layer[0]._filter.get({})])
     elif 'sinc' == args.option:
-        FILTER.append([layer[0]._freq.get({})])
+        FILTER.append([layer[0]._freq.get({}), layer[0]._filter.get({})])
     else:
         FILTER = []
 
     #### save the file
-    np.savez('save_bird_{}_{}_{}_{}_{}_{}.npz'.format(args.BS, args.option, args.J, args.Q,
+    np.savez('save_bird_{}_{}_{}_{}_{}_{}_{}.npz'.format(args.BS, args.option, args.J, args.Q, args.L,
                                        args.bins, args.model), train=TRAIN,
-             test=TEST, valid=VALID, rep=REP, filter=FILTER, proba=PROBA,
+             test=TEST, valid=VALID, filter=FILTER, proba=PROBA,
              y_valid = labels_valid, y_test=labels_test)
 
     #### update the learning rate

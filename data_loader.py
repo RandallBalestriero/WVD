@@ -18,9 +18,10 @@ def extract_patches(signal, y, length, hop):
 def load_bird():
     wavs, labels = theanoxla.datasets.load_freefield1010(subsample=2)
     wavs /= wavs.max(1, keepdims=True)
+    print('orig', wavs.shape)
     wavs, labels = extract_patches(wavs, labels, 2**16, 2**15)
     # split into train valid and test
-    print(wavs.shape, labels.shape)
+    print('after', wavs.shape, labels.shape)
     wavs_train, wavs_test, labels_train, labels_test = train_test_split(wavs,
                                                                         labels,
                                                                         train_size=0.75)
@@ -38,16 +39,20 @@ def load_ecg():
 
 
 def load_gtzan():
-    wavs, labels = theanoxla.datasets.gtzan.load(subsample=2)
+    wavs, labels = theanoxla.datasets.gtzan.load()
     wavs /= wavs.max(1, keepdims=True)
-    wavs, labels = extract_patches(wavs, labels, 2**16, 2**15)
+    print('origin', wavs.shape)
+    wavs, labels = extract_patches(wavs, labels, 2**17, 2**16)
+    print('after', wavs.shape)
     # split into train valid and test
     print(wavs.shape, labels.shape)
     wavs_train, wavs_test, labels_train, labels_test = train_test_split(wavs,
                                                                         labels,
                                                                         train_size=0.75)
+    print('after', wavs_train.shape)
     wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
                                                                           labels_train,
                                                                       train_size=0.8)
+    print('after', wavs_train.shape)
     return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
  
