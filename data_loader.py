@@ -19,7 +19,7 @@ def load_bird():
     wavs, labels = theanoxla.datasets.load_freefield1010(subsample=2)
     wavs /= wavs.max(1, keepdims=True)
     print('orig', wavs.shape)
-    wavs, labels = extract_patches(wavs, labels, 2**16, 2**15)
+    wavs, labels = extract_patches(wavs, labels, 2**17, 2**16)
     # split into train valid and test
     print('after', wavs.shape, labels.shape)
     wavs_train, wavs_test, labels_train, labels_test = train_test_split(wavs,
@@ -33,7 +33,53 @@ def load_bird():
 
 
 def load_ecg():
-   return 'sdf'
+    train = np.loadtxt('../heartbit/mitbih_train.csv', delimiter=',')
+    x_train, y_train = train[:, :-1], train[:, -1]
+
+    test = np.loadtxt('../heartbit/mitbih_test.csv', delimiter=',')
+    x_test, y_test = test[:, :-1], test[:, -1]
+    x_train, x_valid, y_train, y_valid = train_test_split(x_train, y_train, train_size=0.8)
+    print(x_train.shape, x_valid.shape, x_test.shape)
+    y_train = y_train.astype('int32')
+    y_valid = y_valid.astype('int32')
+    y_test = y_test.astype('int32')
+    print(y_train, y_train.max())
+    return x_train, y_train, x_valid, y_valid, x_test, y_test
+
+
+def load_dyni():
+    classes = ['GG', 'GMA', 'LA', 'MB', 'ME', 'PM', 'SSP', 'UDA', 'UDB', 'ZC']
+    class2ind = dict(zip(classes, list(range(10))))
+    origin = '/home/rbal/DOCC10_train/DOCC10_train/'
+    x_train = np.load(origin + 'DOCC10_Xtrain.npy')
+    y = np.loadtxt(origin + 'DOCC10_Ytrain.csv',
+                   delimiter=',', dtype='str')
+    yy = np.loadtxt(origin + 'DOCC10_Xtrain_IDS.csv',
+                    delimiter=',', dtype='int32')
+#    yy = yy[1:]
+    y = y[1:]
+    index2id = dict(zip(yy[:, 1], yy[:, 0]))
+#    print(yy[:,1], yy[:, 0], '100000' in yy[:,0])
+#    sdf
+    id2class = dict(zip(y[:,0], y[:, 1]))
+    y_train = list()
+    print('10000' in id2class, '10000' in yy[:,1])
+    for i in range(len(x_train)):
+        idd = index2id[i]
+        clas = id2class[str(idd)]
+        index = class2ind[clas]
+        y_train.append(index)
+    y_train = np.array(y_train).astype('int32')
+    wavs_train, wavs_test, labels_train, labels_test = train_test_split(x_train,
+                                                                        y_train,
+                                                                        train_size=0.75)
+    print('after', wavs_train.shape)
+    wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
+                                                                          labels_train,
+                                                                      train_size=0.8)
+    print('after', wavs_train.shape)
+    return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
+
 
 
 

@@ -53,7 +53,7 @@ def create_transform(input, args):
                                    strides=args.bins//2, W_shape=filters.shape, trainable_b=False))
         layer.append(T.sqrt(layer[-1]**2 + layer[-2]**2))
         layer.append(T.expand_dims(layer[-1], 1))
-    elif args.option == 'wvd':
+    elif 'wvd' in args.option:
         B = (args.bins//2)//(args.J*args.Q)
         WVD = T.signal.wvd(input.reshape((args.BS, 1, -1)), window=args.bins, L=args.L,
                            hop=(args.bins // 2)//(B*2))
@@ -62,29 +62,38 @@ def create_transform(input, args):
         patches = T.extract_image_patches(WVD, (B*2, B*2), hop=B)
         J = args.J*args.Q
         # gaussian parameters
-        vart = T.Variable(1+0.01*np.random.randn(J+1, 1).astype('float32'), name='var')
-        varf = T.Variable(1+0.01*np.random.randn(J+1, 1).astype('float32'), name='var')
-        cor = T.Variable(
-            0.1*np.random.randn(J+1, 1).astype('float32'), name='cor')
-        cov = T.concatenate(
-            [T.abs(vart), cor, cor, T.abs(varf)], 1).reshape((J+1, 2, 2))
-
-        mean = T.Variable(0.1*np.random.randn(J+1, 1,
-                                              2).astype('float32'), name='cov')
-        # get the gaussian filters
-        filter = gauss_2d(B*2, mean, cov)
+        if args.option == 'wvd':
+            vart = T.Variable(1+0.01*np.random.randn(J+1, 1).astype('float32'), name='var')
+            varf = T.Variable(1+0.01*np.random.randn(J+1, 1).astype('float32'), name='var')
+            cor = T.Variable(
+                np.random.randn(J+1, 1).astype('float32'), name='cor')
+            xvar = 0.1+T.abs(vart)
+            yvar = 0.1+T.abs(varf)
+            coeff = T.stop_gradient(T.sqrt(xvar * yvar))
+            cov = T.concatenate(
+                [xvar, T.tanh(cor)*coeff, T.tanh(cor)*coeff, yvar], 1).reshape((J+1, 2, 2))
+    
+            mean = T.Variable(0.1*np.random.randn(J+1, 1,
+                                                  2).astype('float32'), name='cov')
+            # get the gaussian filters
+            filter = gauss_2d(B*2, mean, cov)
+        else:
+            filter = T.Variable(np.random.randn(J, B*2, B*2))
         # apply the filters
         print(filter.shape, patches.shape)
-        wvd = T.einsum('nkjab,kab->nkj', patches.squeeze(), filter)
+        wvd = T.einsum('nkjab,kab->nkj', patches.squeeze(), T.abs(filter))
         # add the variables
         layer = [layers.Activation(T.expand_dims(wvd, 1), T.abs)]
         layer[-1]._filter = filter
-        layer[-1]._mean = mean
-        layer[-1]._cov = cov
-        layer[-1].add_variable(vart)
-        layer[-1].add_variable(varf)
-        layer[-1].add_variable(cor)
-        layer[-1].add_variable(mean)
+        if args.option == 'wvd':
+            layer[-1]._mean = mean
+            layer[-1]._cov = cov
+            layer[-1].add_variable(vart)
+            layer[-1].add_variable(varf)
+            layer[-1].add_variable(cor)
+            layer[-1].add_variable(mean)
+        else:
+            layer[-1].add_variable(filter)
     elif args.option == 'sinc':
         # create the varianles
         freq = T.Variable(np.random.randn(args.J*args.Q, 2), name='c_freq')
@@ -174,6 +183,7 @@ def model_bird(layer, deterministic, c):
         layer[-1], [0, 2, 3], deterministic))
     layer.append(layers.Activation(layer[-1], T.leaky_relu))
     layer.append(layers.Pool2D(layer[-1], (1, 2)))
+    layer.append(layers.Dropout(layer[-1], 0.3, deterministic))
 
     layer.append(layers.Dense(layer[-1], 256))
     layer.append(layers.BatchNormalization(layer[-1], [0], deterministic))
