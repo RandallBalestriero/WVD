@@ -35,7 +35,11 @@ parse.add_argument('--dataset', type=str, default='bird',
                    choices=['bird', 'gtzan', 'ecg', 'dyni'])
 parse.add_argument('--model', type=str, default='base')
 parse.add_argument('--run', type=int, default=0)
+parse.add_argument('--hop', type=int, default=0)
 args = parse.parse_args()
+
+if args.hop == 0:
+    args.hop = args.bins // 2
 
 
 # DATASET LOADING
@@ -61,8 +65,8 @@ print(input.shape)
 deterministic = T.Placeholder((1,), 'bool')
 
 layer = utils.create_transform(input, args)
-print(layer[0].shape)
-layer.append(layers.Activation(layer[-1]+0.1, T.log))
+#print(layer[0].shape)
+#layer.append(layers.Activation(layer[-1]+0.1, T.log))
 if args.model == 'base':
     utils.model_bird(layer, deterministic, labels_train.max()+1)
 elif args.model == 'small':
@@ -81,7 +85,7 @@ proba = T.softmax(layer[-1])[:, 1]
 var = sum([lay.variables() for lay in layer if isinstance(lay, layers.Layer)],
           [])
 
-lr = theanoxla.optimizers.PiecewiseConstant(args.LR, {350: args.LR/3,
+lr = theanoxla.schedules.PiecewiseConstant(args.LR, {350: args.LR/3,
                                                       425: args.LR/6})
 opt = theanoxla.optimizers.Adam(loss, var, lr)
 updates = opt.updates
