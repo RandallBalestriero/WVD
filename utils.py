@@ -7,6 +7,24 @@ from theanoxla import layers
 from scipy.signal import morlet
 
 
+def freq_to_mel(f, option='linear'):
+    # convert frequency to mel with
+    if option == 'linear':
+
+        # linear part slope
+        f_sp = 200.0 / 3
+
+        # Fill in the log-scale part
+        min_log_hz = 1000.0    # beginning of log region (Hz)
+        min_log_mel = min_log_hz / f_sp   # same (Mels)
+        logstep = numpy.log(6.4) / 27.0    # step size for log region
+        mel = min_log_mel + np.log(f / min_log_hz) / logstep
+        return np.where(f >= min_log_hz, mel, f/f_sp)
+    else:
+        return 2595 * T.log10(1+f / 700)
+
+
+
 def morlet_filter_bank(N, J, Q):
     scales = 2**(-np.arange(J*Q)/Q)
     filters = [morlet(N, s=s) for s in scales]
@@ -18,9 +36,9 @@ def gauss_2d(N, m, S):
     x, y = T.meshgrid(time, time)
     grid = T.stack([x.flatten(), y.flatten()], 1) - m
     gaussian = T.exp(-0.5 * (grid.matmul(S)*grid).sum(-1)).reshape((-1, N, N))
-    deter = T.reshape(T.sqrt(S[:, 0, 0]*S[:, 1, 1]-S[:, 0, 1]*S[:, 1, 0]),
-                      (-1, 1, 1))
-    return gaussian * deter / (3.14159 * 2)
+#    deter = T.reshape(T.sqrt(S[:, 0, 0]*S[:, 1, 1]-S[:, 0, 1]*S[:, 1, 0]),
+#                      (-1, 1, 1))
+    return gaussian# * deter / (3.14159 * 2)
 
 
 def create_transform(input, args):
@@ -62,16 +80,18 @@ def create_transform(input, args):
                 0.1 * np.random.randn(J+1, 1).astype('float32'), name='cor')
             xvar = 0.1+T.abs(vart)
             yvar = 0.1+T.abs(varf)
-            coeff = T.stop_gradient(T.sqrt(xvar * yvar))
+            coeff = T.stop_gradient(T.sqrt(xvar * yvar)) * 0.95
             cov = T.concatenate(
                 [xvar, T.tanh(cor)*coeff, T.tanh(cor)*coeff, yvar], 1).reshape((J+1, 2, 2))
     
             mean = T.Variable(0.1*np.random.randn(J+1, 1,
                                                   2).astype('float32'), name='cov')
             # get the gaussian filters
-            filter = gauss_2d(B*2, mean, cov)
+            w = gauss_2d(B*2, mean, cov)
+            filter = w / w.sum((1, 2), keepdims=True)
         else:
-            filter = T.Variable(np.random.randn(J+1, B*2, B*2))
+            w = T.Variable(np.random.randn(J+1, B*2, B*2))
+            filter = T.abs(w) / T.abs(w).sum((1, 2), keepdims=True)
         # apply the filters
         print(filter.shape, patches.shape)
         wvd = T.einsum('nkjab,kab->nkj', patches.squeeze(), T.abs(filter))
@@ -86,22 +106,24 @@ def create_transform(input, args):
             layer[-1].add_variable(cor)
             layer[-1].add_variable(mean)
         else:
-            layer[-1].add_variable(filter)
+            layer[-1].add_variable(w)
     elif args.option == 'sinc':
         # create the varianles
-        freq = T.Variable(np.random.randn(args.J*args.Q, 2), name='c_freq')
+        init = np.linspace(4, 256, args.J*args.Q)
+        init = np.stack([init - np.random.rand(args.J*args.Q) * 4,
+                         np.random.rand(args.J*args.Q) * 8], 1)
+        freq = T.Variable(init/256, name='c_freq')
         # parametrize the frequencies
         f0 = T.abs(freq[:, 0])
         f1 = f0+T.abs(freq[:, 1])
         # sampled the bandpass filters
-        time = T.linspace(-5, 5, args.bins).reshape((-1, 1))
+        time = T.linspace(- args.bin // 2, args.bin //2 -1, args.bins).reshape((-1, 1))
         filters = T.transpose(T.expand_dims(T.signal.sinc_bandpass(time, f0, f1), 1),
                               [2, 1, 0])
         # apodize
         apod_filters = filters * T.signal.hanning(args.bins)
         # normalize
         normed_filters = apod_filters/(apod_filters**2.).sum(2, keepdims=True)
-        print(normed_filters.get({}))
         layer = [layers.Conv1D(input.reshape((args.BS, 1, -1)), W=normed_filters,
                                strides=args.hop, trainable_b=False, trainable_W=False,
                                W_shape=(args.Q*args.J, 1, args.bins))]
