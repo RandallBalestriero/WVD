@@ -6,6 +6,13 @@ import theanoxla.tensor as T
 from theanoxla import layers
 from scipy.signal import morlet
 
+def morlet2(M, w, s):
+    x = T.linspace(-s * 2 * np.pi, s * 2 * np.pi, M)
+    output = T.complex(T.cos(w * x), T.sin(w * x))
+
+    output2 = output - T.exp(-0.5 * (w**2))
+
+    return output2 * T.exp(-0.5 * (x**2)) * np.pi**(-0.25)
 
 def freq_to_mel(f, option='linear'):
     # convert frequency to mel with
@@ -26,7 +33,7 @@ def freq_to_mel(f, option='linear'):
 
 
 def morlet_filter_bank(N, J, Q):
-    scales = 2**(-np.arange(J*Q)/Q)
+    scales = 2**(np.linspace(-0.5, N**0.25, J*Q))
     filters = [morlet(N, s=s) for s in scales]
     return np.stack(filters)
 
@@ -50,9 +57,8 @@ def create_transform(input, args):
     elif args.option == 'raw':
         layer = [layers.Conv1D(input.reshape((args.BS, 1, -1)),
                                strides=args.hop,
-                               W_shape=(args.J * args.Q, 1, args.bins), b=None)]
-        layer.append(layers.Activation(
-            layer[-1].reshape(args.BS, q, args.J*args.Q, -1), T.abs))
+                               W_shape=(args.J * args.Q, 1, args.bins), trainable_b=False)]
+        layer.append(layers.Activation(T.expand_dims(layer[-1], 1), T.abs))
     elif args.option == 'morlet':
         filters = morlet_filter_bank(args.bins, args.J, args.Q)
         # normalize
@@ -62,6 +68,23 @@ def create_transform(input, args):
                                strides=args.hop, W_shape=filters.shape, trainable_b=False)]
         layer.append(layers.Conv1D(input.reshape((args.BS, 1, -1)), W=filters.imag, trainable_W=False,
                                    strides=args.hop, W_shape=filters.shape, trainable_b=False))
+        layer.append(T.sqrt(layer[-1]**2 + layer[-2]**2))
+        layer.append(T.expand_dims(layer[-1], 1))
+    elif args.option == 'learnmorlet':
+        w = T.Variable(np.ones(args.J*args.Q)*5)
+        scales = T.Variable(2**(np.linspace(-0.5, args.bins**0.25, args.J*args.Q)))
+        filters = T.stack([morlet2(args.bins, w[i], s=scales[i]) for i in range(args.J*args.Q)]).squeeze()
+        filters_norm = T.expand_dims(filters/T.norm(filters,2, -1, keepdims=True), 1)
+
+        layer = [layers.Conv1D(input.reshape((args.BS, 1, -1)), W=T.real(filters_norm), trainable_W=False,
+                               strides=args.hop, W_shape=filters_norm.shape, trainable_b=False)]
+        layer.append(layers.Conv1D(input.reshape((args.BS, 1, -1)), W=T.imag(filters_norm), trainable_W=False,
+                                   strides=args.hop, W_shape=filters_norm.shape, trainable_b=False))
+        layer[0].add_variable(w)
+        layer[0].add_variable(scales)
+        layer[0]._filters = filters
+        layer[0]._scales = scales
+        layer[0]._w = w
         layer.append(T.sqrt(layer[-1]**2 + layer[-2]**2))
         layer.append(T.expand_dims(layer[-1], 1))
     elif 'wvd' in args.option:
@@ -117,7 +140,7 @@ def create_transform(input, args):
         f0 = T.abs(freq[:, 0])
         f1 = f0+T.abs(freq[:, 1])
         # sampled the bandpass filters
-        time = T.linspace(- args.bin // 2, args.bin //2 -1, args.bins).reshape((-1, 1))
+        time = T.linspace(- args.bins // 2, args.bins //2 -1, args.bins).reshape((-1, 1))
         filters = T.transpose(T.expand_dims(T.signal.sinc_bandpass(time, f0, f1), 1),
                               [2, 1, 0])
         # apodize

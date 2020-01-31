@@ -50,7 +50,7 @@ def load_ecg():
 def load_dyni():
     classes = ['GG', 'GMA', 'LA', 'MB', 'ME', 'PM', 'SSP', 'UDA', 'UDB', 'ZC']
     class2ind = dict(zip(classes, list(range(10))))
-    origin = '/home/vrael/DOCC10_train/DOCC10_train/'
+    origin = '/home/rbal/DOCC10_train/DOCC10_train/'
     x_train = np.load(origin + 'DOCC10_Xtrain.npy')
     y = np.loadtxt(origin + 'DOCC10_Ytrain.csv',
                    delimiter=',', dtype='str')

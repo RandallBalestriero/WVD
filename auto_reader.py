@@ -10,22 +10,56 @@ ax1 = plt.subplot(131)
 ax2 = plt.subplot(132)
 ax3 = plt.subplot(133)
 
-for name in filenames:
-    f = np.load(name)
 
-    train = f['train']
-    test = f['test']
-    valid = f['valid']
+MODELS = ['wvd', 'npwvd', 'morlet', 'learnmorlet', 'melspec', 'sinc', 'raw']
+LRS = [0.001, 0.005, 0.0005]
+RUNS = [0, 1]
+name = 'save_bird_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}.npz'
+BS=16
+J=5
+Q=8
+DN='small'
+HOP=128
+BINS=1024
+DATASET='dyni'
+#.format(args.BS, args.option, args.J, args.Q, args.L,    
+#args.bins, args.model, args.LR, args.dataset, args.run
+T = list()
+QQ = list()
+for RUN in RUNS:
+    for lr in LRS:
+        for c, model in enumerate(MODELS):
+            if 'wvd' in model:
+                L=8
+            else:
+                L=1
+            filename = name.format(BS, model, J, Q, L, BINS, DN, lr, DATASET, RUN)
+            f = np.load(filename)
 
-    print(train.shape, test.shape, valid.shape)
+            train = f['train'].squeeze().mean(1)
+            test = f['test'].mean(2)
+            valid = f['valid'].mean(2)
+            print(train[:5])
+            T.append(test[valid[:,1].argmax(), 1])
+            QQ.append(valid[:, 1].max())
+            print(train.shape, test.shape, valid.shape)
+            ax1.plot(valid[:, 1], c='C{}'.format(c), label=model)
+            ax2.plot(test[:, 1], c='C{}'.format(c))
+            ax3.plot(train, c='C{}'.format(c))
 
-    ax1.plot(valid[:, 1].mean(1))
-    ax2.plot(test[:, 1].mean(1))
-    ax3.plot(train.mean((1, 2)))
+T = np.array(T).reshape((len(RUNS), len(LRS), len(MODELS)))
+QQ = np.array(QQ).reshape((len(RUNS), len(LRS), len(MODELS)))
 
+print(MODELS)
+Tp = np.take_along_axis(T, QQ.argmax(1)[:, None, :], 1)
+print(Tp.mean(0))
+print(Tp.std(0))
 
-# plt.show(block=True)
+handles, labels = ax1.get_legend_handles_labels()
 
+plt.legend(handles[:len(MODELS)], labels[:len(MODELS)])
+plt.show(block=True)
+asdf
 
 for name in filenames:
     if '_wvd' in name:

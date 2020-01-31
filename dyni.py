@@ -23,7 +23,7 @@ import data_loader
 
 
 parse = argparse.ArgumentParser()
-parse.add_argument('--option', type=str, choices=['melspec', 'morlet', 'sinc',
+parse.add_argument('--option', type=str, choices=['melspec', 'morlet', 'sinc', 'learnmorlet',
                                                   'raw', 'rawshort', 'wvd', 'npwvd'])
 parse.add_argument('-J', type=int, default=5)
 parse.add_argument('-Q', type=int, default=8)
@@ -85,11 +85,11 @@ for lay in layer:
         updates.update(lay.updates)
 
 # create the functions
-train = theanoxla.function(input, label, deterministic, outputs=[loss],
+train = theanoxla.function(input, label, deterministic, outputs=loss,
                            updates=updates)
 test = theanoxla.function(input, label, deterministic,
                           outputs=[loss, accuracy, proba])
-get_repr = theanoxla.function(input, outputs=[layer[0]])
+get_repr = theanoxla.function(input, outputs=layer[0])
 
 TRAIN, TEST, VALID, FILTER, REP, PROBA = [], [], [], [], [], []
 
@@ -103,8 +103,7 @@ for epoch in range(100):
     for x, y in theanoxla.utils.batchify(wavs_train, labels_train, batch_size=args.BS,
                                          option='random_see_all'):
         l.append(train(x, y, 0))
-        print(l[-1])
-    print('FINALtrain', np.mean(l, 0))
+    print('FINALtrain', np.mean(l))
     TRAIN.append(np.array(l))
 
     # valid and get repr
@@ -126,7 +125,7 @@ for epoch in range(100):
     VALID.append([np.array(C), np.array(l)])
 #    REP.append(np.concatenate(r))
     PROBA.append(np.concatenate(p))
-    print('FINALvalid', np.mean(VALID[-1][1], 0))
+    print('FINALvalid', np.mean(VALID[-1][1]))
 
     # test
     l = list()
@@ -141,7 +140,7 @@ for epoch in range(100):
 
     TEST.append([np.array(C), np.array(l)])
     PROBA.append(np.concatenate(p))
-    print('FINALtest', np.mean(TEST[-1][1], 0))
+    print('FINALtest', np.mean(TEST[-1][1]))
 
     # save filter parameters
     if 'wvd' == args.option:
@@ -151,6 +150,8 @@ for epoch in range(100):
         FILTER.append([layer[0]._filter.get({})])
     elif 'sinc' == args.option:
         FILTER.append([layer[0]._freq.get({}), layer[0]._filter.get({})])
+    elif 'learnmorlet' == args.option:
+        FILTER.append([layer[0]._filters.get({}), layer[0]._w.get({}), layer[0]._scales.get({})])
     else:
         FILTER = []
 
