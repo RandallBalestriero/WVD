@@ -23,7 +23,7 @@ import data_loader
 
 
 parse = argparse.ArgumentParser()
-parse.add_argument('--option', type=str, choices=['melspec', 'morlet', 'sinc',
+parse.add_argument('--option', type=str, choices=['melspec', 'morlet', 'sinc', 'learnmorlet',
                                                   'raw', 'rawshort', 'wvd', 'npwvd'])
 parse.add_argument('-J', type=int, default=5)
 parse.add_argument('-Q', type=int, default=8)
@@ -31,8 +31,6 @@ parse.add_argument('--bins', type=int, default=512)
 parse.add_argument('-BS', type=int, default=8)
 parse.add_argument('-L', type=int, default=1)
 parse.add_argument('-LR', type=float, default=0.001)
-parse.add_argument('--dataset', type=str, default='bird',
-                   choices=['bird', 'gtzan', 'ecg', 'dyni'])
 parse.add_argument('--model', type=str, default='base')
 parse.add_argument('--run', type=int, default=0)
 parse.add_argument('--hop', type=int, default=0)
@@ -43,15 +41,8 @@ if args.hop == 0:
 
 
 # DATASET LOADING
-
-if args.dataset == 'bird':
-    wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test = data_loader.load_bird()
-elif args.dataset == 'ecg':
-    wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test = data_loader.load_ecg()
-elif args.dataset == 'gtzan':
-    wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test = data_loader.load_gtzan()
-elif args.dataset == 'dyni':
-    wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test = data_loader.load_dyni()
+args.dataset = 'dyni'
+wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test = data_loader.load_bird()
 
 
 
@@ -85,8 +76,8 @@ proba = T.softmax(layer[-1])[:, 1]
 var = sum([lay.variables() for lay in layer if isinstance(lay, layers.Layer)],
           [])
 
-lr = theanoxla.schedules.PiecewiseConstant(args.LR, {350: args.LR/3,
-                                                      425: args.LR/6})
+lr = theanoxla.schedules.PiecewiseConstant(args.LR, {70: args.LR/3,
+                                                      100: args.LR/6})
 opt = theanoxla.optimizers.Adam(loss, var, lr)
 updates = opt.updates
 for lay in layer:
@@ -94,26 +85,25 @@ for lay in layer:
         updates.update(lay.updates)
 
 # create the functions
-train = theanoxla.function(input, label, deterministic, outputs=[loss],
+train = theanoxla.function(input, label, deterministic, outputs=loss,
                            updates=updates)
 test = theanoxla.function(input, label, deterministic,
                           outputs=[loss, accuracy, proba])
-get_repr = theanoxla.function(input, outputs=[layer[0]])
+get_repr = theanoxla.function(input, outputs=layer[0])
 
 TRAIN, TEST, VALID, FILTER, REP, PROBA = [], [], [], [], [], []
 
 
 print(wavs_train.shape)
 
-for epoch in range(500):
+for epoch in range(130):
 
     # train part
     l = list()
     for x, y in theanoxla.utils.batchify(wavs_train, labels_train, batch_size=args.BS,
                                          option='random_see_all'):
         l.append(train(x, y, 0))
-        print(l[-1])
-    print('FINALtrain', np.mean(l, 0))
+    print('FINALtrain', np.mean(l))
     TRAIN.append(np.array(l))
 
     # valid and get repr
@@ -135,7 +125,7 @@ for epoch in range(500):
     VALID.append([np.array(C), np.array(l)])
 #    REP.append(np.concatenate(r))
     PROBA.append(np.concatenate(p))
-    print('FINALvalid', np.mean(VALID[-1][1], 0))
+    print('FINALvalid', np.mean(VALID[-1][1]))
 
     # test
     l = list()
@@ -150,7 +140,7 @@ for epoch in range(500):
 
     TEST.append([np.array(C), np.array(l)])
     PROBA.append(np.concatenate(p))
-    print('FINALtest', np.mean(TEST[-1][1], 0))
+    print('FINALtest', np.mean(TEST[-1][1]))
 
     # save filter parameters
     if 'wvd' == args.option:
@@ -160,11 +150,13 @@ for epoch in range(500):
         FILTER.append([layer[0]._filter.get({})])
     elif 'sinc' == args.option:
         FILTER.append([layer[0]._freq.get({}), layer[0]._filter.get({})])
+    elif 'learnmorlet' == args.option:
+        FILTER.append([layer[0]._filters.get({}), layer[0]._w.get({}), layer[0]._scales.get({})])
     else:
         FILTER = []
 
     # save the file
-    np.savez('save_bird_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}.npz'.format(args.BS, args.option, args.J, args.Q, args.L,
+    np.savez('save_BIRD_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}.npz'.format(args.BS, args.option, args.J, args.Q, args.L,
                                                          args.bins, args.model, args.LR, args.dataset, args.run), train=TRAIN,
              test=TEST, valid=VALID, filter=FILTER, proba=PROBA,
              y_valid=labels_valid, y_test=labels_test)
