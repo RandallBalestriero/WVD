@@ -17,17 +17,27 @@ def extract_patches(signal, y, length, hop):
 
 def load_bird():
     wavs, labels = theanoxla.datasets.load_freefield1010(subsample=2)
+    wavs -= wavs.mean(1, keepdims=True)
     wavs /= wavs.max(1, keepdims=True)
+    ind = np.nonzero(labels == 1)[0]
+    to_keep = np.nonzero(labels == 0)[0]
+    to_keep = np.concatenate([to_keep[:len(ind)], ind])
+    wavs = wavs[to_keep]
+    labels = labels[to_keep]
     print('orig', wavs.shape)
-    wavs, labels = extract_patches(wavs, labels, 2**17, 2**16)
-    # split into train valid and test
-    print('after', wavs.shape, labels.shape)
+
+    # split
     wavs_train, wavs_test, labels_train, labels_test = train_test_split(wavs,
                                                                         labels,
                                                                         train_size=0.75)
     wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
                                                                           labels_train,
                                                                       train_size=0.8)
+ 
+    wavs_train, labels_train = extract_patches(wavs_train, labels_train, 2**17, 2**16)
+    wavs_test, labels_test = extract_patches(wavs_test, labels_test, 2**17, 2**16)
+    wavs_valid, labels_valid = extract_patches(wavs_valid, labels_valid, 2**17, 2**16)
+
     return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
 
 
@@ -79,14 +89,13 @@ def load_dyni():
 
 
 
-
-
 def load_gtzan():
     wavs, labels = theanoxla.datasets.gtzan.load()
-    wavs /= wavs.max(1, keepdims=True)
+    wavs -= wavs.mean(1, keepdims=True)
+    wavs /= np.abs(wavs).max(1, keepdims=True)
+
     print('origin', wavs.shape)
-    wavs, labels = extract_patches(wavs, labels, 2**17, 2**16)
-    print('after', wavs.shape)
+    
     # split into train valid and test
     print(wavs.shape, labels.shape)
     wavs_train, wavs_test, labels_train, labels_test = train_test_split(wavs,
@@ -96,6 +105,9 @@ def load_gtzan():
     wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
                                                                           labels_train,
                                                                       train_size=0.8)
-    print('after', wavs_train.shape)
+    wavs_train, labels_train = extract_patches(wavs_train, labels_train, 2**17, 2**16)
+    wavs_test, labels_test = extract_patches(wavs_test, labels_test, 2**17, 2**16)
+    wavs_valid, labels_valid = extract_patches(wavs_valid, labels_valid, 2**17, 2**16)
+
     return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
  
