@@ -13,7 +13,7 @@ ax3 = plt.subplot(133)
 
 MODELS = ['wvd', 'npwvd', 'morlet', 'learnmorlet', 'melspec', 'sinc', 'raw']
 LRS = [0.001, 0.005, 0.0005]
-RUNS = [0, 1]
+RUNS = [0, 1, 2]
 name = 'save_bird_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}.npz'
 BS=16
 J=5

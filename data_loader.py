@@ -93,7 +93,7 @@ def load_gtzan():
     wavs, labels = theanoxla.datasets.gtzan.load()
     wavs -= wavs.mean(1, keepdims=True)
     wavs /= np.abs(wavs).max(1, keepdims=True)
-
+    wavs = wavs[:, ::2]
     print('origin', wavs.shape)
     
     # split into train valid and test
@@ -105,9 +105,6 @@ def load_gtzan():
     wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
                                                                           labels_train,
                                                                       train_size=0.8)
-    wavs_train, labels_train = extract_patches(wavs_train, labels_train, 2**17, 2**16)
-    wavs_test, labels_test = extract_patches(wavs_test, labels_test, 2**17, 2**16)
-    wavs_valid, labels_valid = extract_patches(wavs_valid, labels_valid, 2**17, 2**16)
 
     return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
  
