@@ -14,6 +14,24 @@ def extract_patches(signal, y, length, hop):
     return windows.reshape((-1, length)), np.repeat(y, B, 0)
 
 
+def load_mnist():
+    wavs, digits, speakers = theanoxla.datasets.audiomnist.load()
+    labels = digits
+    wavs -= wavs.mean(1, keepdims=True)
+    wavs /= wavs.max(1, keepdims=True)
+    print('orig', wavs.shape)
+
+    # split
+    wavs_train, wavs_test, labels_train, labels_test = train_test_split(wavs,
+                                                                        labels,
+                                                                        train_size=0.75)
+    wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
+                                                                          labels_train,
+                                                                      train_size=0.8)
+ 
+    return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
+
+
 
 def load_ust():
     wavs, labels = theanoxla.datasets.urban.load()
@@ -53,10 +71,6 @@ def load_bird():
                                                                           labels_train,
                                                                       train_size=0.8)
  
-    wavs_train, labels_train = extract_patches(wavs_train, labels_train, 2**17, 2**16)
-    wavs_test, labels_test = extract_patches(wavs_test, labels_test, 2**17, 2**16)
-    wavs_valid, labels_valid = extract_patches(wavs_valid, labels_valid, 2**17, 2**16)
-
     return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
 
 
