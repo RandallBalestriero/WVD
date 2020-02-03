@@ -15,6 +15,25 @@ def extract_patches(signal, y, length, hop):
 
 
 
+def load_ust():
+    wavs, labels = theanoxla.datasets.urban.load()
+    wavs -= wavs.mean(1, keepdims=True)
+    wavs /= wavs.max(1, keepdims=True)
+    wavs = wavs[:, ::3]
+    print('orig', wavs.shape)
+
+    # split
+    wavs_train, wavs_test, labels_train, labels_test = train_test_split(wavs,
+                                                                        labels,
+                                                                        train_size=0.75)
+    wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
+                                                                          labels_train,
+                                                                      train_size=0.8)
+ 
+    return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
+
+
+
 def load_bird():
     wavs, labels = theanoxla.datasets.load_freefield1010(subsample=2)
     wavs -= wavs.mean(1, keepdims=True)
