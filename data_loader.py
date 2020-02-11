@@ -122,6 +122,27 @@ def load_dyni():
 
 
 
+def load_usc():
+    wavs, fine, coarse, _ = theanoxla.datasets.esc50.load()
+    wavs -= wavs.mean(1, keepdims=True)
+    wavs /= np.abs(wavs).max(1, keepdims=True)
+    wavs = wavs
+    labels = fine
+    print('origin', wavs.shape)
+    
+    # split into train valid and test
+    print(wavs.shape, labels.shape)
+    wavs_train, wavs_test, labels_train, labels_test = train_test_split(wavs,
+                                                                        labels,
+                                                                        train_size=0.75, stratify=labels)
+    print('after', wavs_train.shape)
+    wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
+                                                                          labels_train,
+                                                                      train_size=0.8, stratify=labels_train)
+
+    return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
+ 
+
 def load_gtzan():
     wavs, labels = theanoxla.datasets.gtzan.load()
     wavs -= wavs.mean(1, keepdims=True)

@@ -4,7 +4,7 @@
 GPUS=(0 1 2 0 1 2 0 1 2 0 1 2 0 1 2)
 BINS=512
 HOP=256
-BS=10
+BS=8
 MODEL=small
 J=5
 Q=8
@@ -16,7 +16,7 @@ do
     do
         CPT=$((CPT+1))
         GPU=${GPUS[CPT]}                                                                                                                                                     
-        screen -dmS wvd$run$LR bash -c "export CUDA_VISIBLE_DEVICES=$GPU;python -i ust.py --option wvd --bins $BINS -LR $LR -L 8 --model $MODEL --run $run  -BS $BS --hop $HOP -J $J -Q $Q"
+        screen -dmS wvd$run$LR bash -c "export CUDA_VISIBLE_DEVICES=$GPU;python -i usc.py --option wvd --bins $BINS -LR $LR -L 8 --model $MODEL --run $run  -BS $BS --hop $HOP -J $J -Q $Q"
 
 #        CPT=$((CPT+1))                                                                                                                                                       
 #        GPU=${GPUS[CPT]}                                                                                                                                                     
