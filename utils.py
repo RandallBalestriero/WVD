@@ -41,9 +41,6 @@ def generate_sinc_filterbank(f0, f1, J, N):
                                                   keepdims=True)
 
     filters = T.transpose(T.expand_dims(sincs, 1), [2, 1, 0])
-    for i in range(J):
-        plt.plot(np.abs(np.fft.fft(filters.get()[i, 0])))
-    plt.show()
     return filters, freq
 
 
@@ -54,7 +51,6 @@ def generate_learnmorlet_filterbank(N, J, Q):
 
     filters = T.signal.morlet(N, s=scales.reshape((-1, 1)),
                               w=freqs.reshape((-1, 1)))
-    print(filters.shape)
     filters_norm = filters / T.linalg.norm(filters, 2, 1, keepdims=True)
     return T.expand_dims(filters_norm, 1), freqs, scales
 
@@ -210,7 +206,7 @@ def create_transform(input, args):
     return layer
 
 
-def medium_model_bird(layer, deterministic, c):
+def medium_model(layer, deterministic, c):
     # then standard deep network
     layer.append(layers.Conv2D(layer[-1], W_shape=(16, 1, 3, 3)))
     layer.append(layers.BatchNormalization(
@@ -246,48 +242,53 @@ def medium_model_bird(layer, deterministic, c):
     return layer
 
 
-def small_model_bird(layer, deterministic, c):
+def small_model(layer, deterministic, c):
     # then standard deep network
     layer.append(layers.Conv2D(layer[-1], W_shape=(16, 1, 3, 3)))
     layer.append(layers.BatchNormalization(
         layer[-1], [0, 2, 3], deterministic))
     layer.append(layers.Activation(layer[-1], T.leaky_relu))
-    print(layer[-1])
     layer.append(layers.Pool2D(layer[-1], (3, 3)))
 
-    layer.append(layers.Conv2D(layer[-1], W_shape=(32, 16, 3, 3)))
+    layer.append(layers.Conv2D(layer[-1], W_shape=(16, 16, 3, 3)))
     layer.append(layers.BatchNormalization(
         layer[-1], [0, 2, 3], deterministic))
     layer.append(layers.Activation(layer[-1], T.leaky_relu))
-#    layer.append(layers.Pool2D(layer[-1], (3, 3)))
+    layer.append(layers.Pool2D(layer[-1], (3, 3)))
 
-#    layer.append(layers.Dense(layer[-1], 256))
-#    layer.append(layers.BatchNormalization(layer[-1], [0, 2, 3], deterministic))
-#    layer.append(layers.Activation(layer[-1], T.leaky_relu))
-#    layer.append(layers.Dropout(layer[-1], 0.2, deterministic))
+    layer.append(layers.Conv2D(layer[-1], W_shape=(16, 16, 3, 3)))
+    layer.append(layers.BatchNormalization(
+        layer[-1], [0, 2, 3], deterministic))
+    layer.append(layers.Activation(layer[-1], T.leaky_relu))
+    layer.append(layers.Pool2D(layer[-1], (1, 3)))
 
     layer.append(layers.Dense(T.leaky_relu(layer[-1]), c))
     return layer
 
 
-def scattering_model_bird(layer, deterministic, c):
+def scattering_model(layer, deterministic, c):
     # then standard deep network
-    #layer.append(layers.Pool2D(layer[-1], (1, 5)))
-    layer.append(layers.Conv2D(layer[-1], 16, (5, 5)))
+
+    layer.append(layers.Conv2D(layer[-1], W_shape=(48, 1, 3, 3)))
     layer.append(layers.BatchNormalization(
         layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Activation(layer[-1], T.leaky_relu))
+    layer.append(layers.Activation(layer[-1], T.abs))
 
     N = layer[-1].shape[0]
     features = T.concatenate([layer[-1].mean(3).reshape([N, -1]),
-                              layer[0].mean(3).reshape([N, -1])], 1)
-    print(features.shape)
+                              layer[-4].mean(3).reshape([N, -1])], 1)
+
     layer.append(layers.Dense(features, 256))
     layer.append(layers.BatchNormalization(layer[-1], [0], deterministic))
     layer.append(layers.Activation(layer[-1], T.leaky_relu))
-    layer.append(layers.Dropout(layer[-1], 0.5, deterministic))
 
-    layer.append(layers.Dense(T.leaky_relu(layer[-1]), c))
+    layer.append(layers.Dropout(layer[-1], 0.3, deterministic))
+
+    layer.append(layers.Dense(features, 128))
+    layer.append(layers.BatchNormalization(layer[-1], [0], deterministic))
+    layer.append(layers.Activation(layer[-1], T.leaky_relu))
+
+    layer.append(layers.Dense(layer[-1], c))
     return layer
 
 

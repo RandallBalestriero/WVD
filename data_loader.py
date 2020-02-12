@@ -17,6 +17,7 @@ def extract_patches(signal, y, length, hop):
 def load_mnist():
     wavs, digits, speakers = symjax.datasets.audiomnist.load()
     labels = digits
+    wavs = wavs[:, ::2]
     wavs -= wavs.mean(1, keepdims=True)
     wavs /= wavs.max(1, keepdims=True)
     print('orig', wavs.shape)

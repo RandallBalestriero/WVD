@@ -30,7 +30,7 @@ parse.add_argument('-J', type=int, default=5)
 parse.add_argument('-Q', type=int, default=8)
 parse.add_argument('--bins', type=int, default=512)
 parse.add_argument('-BS', type=int, default=8)
-parse.add_argument('-L', type=int, default=1)
+parse.add_argument('-L', type=int, default=0)
 parse.add_argument('-LR', type=float, default=0.001)
 parse.add_argument('--model', type=str, default='base')
 parse.add_argument('--run', type=int, default=0)
@@ -67,12 +67,12 @@ deterministic = T.Placeholder((1,), 'bool')
 
 layer = utils.create_transform(input, args)
 
-if args.model == 'base':
-    utils.model_bird(layer, deterministic, labels_train.max()+1)
+if args.model == 'scattering':
+    utils.scattering_model(layer, deterministic, labels_train.max()+1)
 elif args.model == 'small':
-    utils.small_model_bird(layer, deterministic, labels_train.max()+1)
+    utils.small_model(layer, deterministic, labels_train.max()+1)
 elif args.model == 'medium':
-    utils.medium_model_bird(layer, deterministic, labels_train.max()+1)
+    utils.medium_model(layer, deterministic, labels_train.max()+1)
 
 
 for l in layer:
@@ -101,9 +101,8 @@ test = symjax.function(input, label, deterministic,
 
 TRAIN, TEST, VALID, FILTER, REP = [], [], [], [], []
 
-print(wavs_train.shape)
-filename = 'save_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}.npz'
-filename.format(args.BS, args.option, args.J, args.Q, args.L, args.bins,                        args.model, args.LR, args.dataset, args.run)
+filename = 'save_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}.npz'
+filename = filename.format(args.BS, args.option, args.J, args.Q, args.L, args.bins,                        args.model, args.LR, args.dataset, args.hop, args.run)
  
 for epoch in range(args.epochs):
 
@@ -144,7 +143,7 @@ for epoch in range(args.epochs):
     elif 'sinc' == args.option:
         FILTER.append([layer[0]._freq.get({}), layer[0]._filter.get({})])
     elif 'learnmorlet' == args.option:
-        FILTER.append([layer[0]._filters.get({}), layer[0]._w.get({}),
+        FILTER.append([layer[0]._filters.get({}), layer[0]._freqs.get({}),
                         layer[0]._scales.get({})])
     else:
         FILTER = []
