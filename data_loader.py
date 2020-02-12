@@ -2,8 +2,8 @@ import pickle
 import numpy as np
 import sys
 sys.path.insert(0, "../TheanoXLA")
-import theanoxla
-from theanoxla.utils import train_test_split
+import symjax
+from symjax.utils import train_test_split
 
 
 def extract_patches(signal, y, length, hop):
@@ -15,7 +15,7 @@ def extract_patches(signal, y, length, hop):
 
 
 def load_mnist():
-    wavs, digits, speakers = theanoxla.datasets.audiomnist.load()
+    wavs, digits, speakers = symjax.datasets.audiomnist.load()
     labels = digits
     wavs -= wavs.mean(1, keepdims=True)
     wavs /= wavs.max(1, keepdims=True)
@@ -33,27 +33,27 @@ def load_mnist():
 
 
 
-def load_ust():
-    wavs, labels = theanoxla.datasets.urban.load()
+def load_usc():
+    wavs, labels = symjax.datasets.urban.load()
     wavs -= wavs.mean(1, keepdims=True)
     wavs /= wavs.max(1, keepdims=True)
-    wavs = wavs[:, ::3]
+    wavs = wavs[:, ::2]
     print('orig', wavs.shape)
 
     # split
     wavs_train, wavs_test, labels_train, labels_test = train_test_split(wavs,
                                                                         labels,
-                                                                        train_size=0.75)
+                                                                        train_size=0.75, stratify=labels)
     wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
                                                                           labels_train,
-                                                                      train_size=0.8)
+                                                                      train_size=0.8, stratify=labels_train)
  
     return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
 
 
 
 def load_bird():
-    wavs, labels = theanoxla.datasets.load_freefield1010(subsample=2)
+    wavs, labels = symjax.datasets.load_freefield1010(subsample=2)
     wavs -= wavs.mean(1, keepdims=True)
     wavs /= wavs.max(1, keepdims=True)
     ind = np.nonzero(labels == 1)[0]
@@ -93,7 +93,7 @@ def load_ecg():
 def load_dyni():
     classes = ['GG', 'GMA', 'LA', 'MB', 'ME', 'PM', 'SSP', 'UDA', 'UDB', 'ZC']
     class2ind = dict(zip(classes, list(range(10))))
-    origin = '/home/rbal/DOCC10_train/DOCC10_train/'
+    origin = '/home/vrael/DOCC10_train/DOCC10_train/'
     x_train = np.load(origin + 'DOCC10_Xtrain.npy')
     y = np.loadtxt(origin + 'DOCC10_Ytrain.csv',
                    delimiter=',', dtype='str')
@@ -112,18 +112,18 @@ def load_dyni():
     y_train = np.array(y_train).astype('int32')
     wavs_train, wavs_test, labels_train, labels_test = train_test_split(x_train,
                                                                         y_train,
-                                                                        train_size=0.75)
+                                                                        train_size=0.75, stratify=y_train)
     print('after', wavs_train.shape)
     wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
                                                                           labels_train,
-                                                                      train_size=0.8)
+                                                                      train_size=0.8, stratify=labels_train)
     print('after', wavs_train.shape)
     return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
 
 
 
-def load_usc():
-    wavs, fine, coarse, _ = theanoxla.datasets.esc50.load()
+def load_esc():
+    wavs, fine, coarse, _ = symjax.datasets.esc50.load()
     wavs -= wavs.mean(1, keepdims=True)
     wavs /= np.abs(wavs).max(1, keepdims=True)
     wavs = wavs
@@ -144,7 +144,7 @@ def load_usc():
  
 
 def load_gtzan():
-    wavs, labels = theanoxla.datasets.gtzan.load()
+    wavs, labels = symjax.datasets.gtzan.load()
     wavs -= wavs.mean(1, keepdims=True)
     wavs /= np.abs(wavs).max(1, keepdims=True)
     wavs = wavs[:, ::2]
@@ -154,11 +154,11 @@ def load_gtzan():
     print(wavs.shape, labels.shape)
     wavs_train, wavs_test, labels_train, labels_test = train_test_split(wavs,
                                                                         labels,
-                                                                        train_size=0.75)
+                                                                        train_size=0.75, stratify=labels)
     print('after', wavs_train.shape)
     wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
                                                                           labels_train,
-                                                                      train_size=0.8)
+                                                                      train_size=0.8, stratify=labels_train)
 
     return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
  
