@@ -14,6 +14,25 @@ def extract_patches(signal, y, length, hop):
     return windows.reshape((-1, length)), np.repeat(y, B, 0)
 
 
+def load_tut():
+    train_wavs, train_labels, test_wavs, test_labels, folds = symjax.datasets.TUTacousticscences2017.load()
+
+    train_wavs -= train_wavs.mean(1, keepdims=True)
+    train_wavs /= train_wavs.max(1, keepdims=True)
+
+    test_wavs -= test_wavs.mean(1, keepdims=True)
+    test_wavs /= test_wavs.max(1, keepdims=True)
+
+    valid_wavs = train_wavs[~folds[:, 0]]
+    train_wavs = train_wavs[folds[:, 0]]
+
+    valid_labels = train_labels[~folds[:, 0]]
+    train_labels = train_labels[folds[:, 0]]
+
+    return train_wavs[:, ::2, 0], train_labels, valid_wavs[:, ::2, 0], valid_labels, test_wavs[:, ::2, 0], test_labels
+
+
+
 def load_mnist():
     wavs, digits, speakers = symjax.datasets.audiomnist.load()
     labels = digits
@@ -21,14 +40,30 @@ def load_mnist():
     wavs -= wavs.mean(1, keepdims=True)
     wavs /= wavs.max(1, keepdims=True)
     print('orig', wavs.shape)
-
     # split
     wavs_train, wavs_test, labels_train, labels_test = train_test_split(wavs,
                                                                         labels,
-                                                                        train_size=0.75)
+                                                                        train_size=0.75, seed=1)
     wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
                                                                           labels_train,
-                                                                      train_size=0.8)
+                                                                      train_size=0.8, seed=1)
+ 
+    return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
+
+
+def load_irmas():
+    wavs, digits, speakers = symjax.datasets.irmas.load()
+    labels = digits
+    wavs -= wavs.mean(1, keepdims=True)
+    wavs /= wavs.max(1, keepdims=True)
+    print('orig', wavs.shape)
+    # split
+    wavs_train, wavs_test, labels_train, labels_test = train_test_split(wavs,
+                                                                        labels,
+                                                                        train_size=0.75, seed=1)
+    wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
+                                                                          labels_train,
+                                                                      train_size=0.8, seed=1)
  
     return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
 
@@ -40,14 +75,14 @@ def load_usc():
     wavs /= wavs.max(1, keepdims=True)
     wavs = wavs[:, ::2]
     print('orig', wavs.shape)
-
+    print(labels.shape)
     # split
     wavs_train, wavs_test, labels_train, labels_test = train_test_split(wavs,
                                                                         labels,
-                                                                        train_size=0.75, stratify=labels)
+                                                                        train_size=0.75, seed=1)
     wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
                                                                           labels_train,
-                                                                      train_size=0.8, stratify=labels_train)
+                                                                      train_size=0.8, seed=1)
  
     return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
 
@@ -67,10 +102,10 @@ def load_bird():
     # split
     wavs_train, wavs_test, labels_train, labels_test = train_test_split(wavs,
                                                                         labels,
-                                                                        train_size=0.75)
+                                                                        train_size=0.75, seed=1)
     wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
                                                                           labels_train,
-                                                                      train_size=0.8)
+                                                                      train_size=0.8, seed=1)
  
     return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
 
@@ -113,11 +148,11 @@ def load_dyni():
     y_train = np.array(y_train).astype('int32')
     wavs_train, wavs_test, labels_train, labels_test = train_test_split(x_train,
                                                                         y_train,
-                                                                        train_size=0.75, stratify=y_train)
+                                                                        train_size=0.75, stratify=y_train, seed=1)
     print('after', wavs_train.shape)
     wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
                                                                           labels_train,
-                                                                      train_size=0.8, stratify=labels_train)
+                                                                      train_size=0.8, stratify=labels_train, seed=1)
     print('after', wavs_train.shape)
     return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
 
@@ -135,11 +170,11 @@ def load_esc():
     print(wavs.shape, labels.shape)
     wavs_train, wavs_test, labels_train, labels_test = train_test_split(wavs,
                                                                         labels,
-                                                                        train_size=0.75, stratify=labels)
+                                                                        train_size=0.75, stratify=labels, seed=1)
     print('after', wavs_train.shape)
     wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
                                                                           labels_train,
-                                                                      train_size=0.8, stratify=labels_train)
+                                                                      train_size=0.8, stratify=labels_train, seed=1)
 
     return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
  
@@ -155,11 +190,11 @@ def load_gtzan():
     print(wavs.shape, labels.shape)
     wavs_train, wavs_test, labels_train, labels_test = train_test_split(wavs,
                                                                         labels,
-                                                                        train_size=0.75, stratify=labels)
+                                                                        train_size=0.75, stratify=labels, seed=1)
     print('after', wavs_train.shape)
     wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
                                                                           labels_train,
-                                                                      train_size=0.8, stratify=labels_train)
+                                                                      train_size=0.8, stratify=labels_train, seed=1)
 
     return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
  

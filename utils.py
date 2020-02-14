@@ -10,8 +10,7 @@ import matplotlib.pyplot as plt
 sys.path.insert(0, "../TheanoXLA")
 
 
-def generate_sinc_filterbank(f0, f1, J, N):
-
+def get_freqs(f0, f1, J):
     f = np.linspace(f0, f1, J)
     # first we compute the mel scale center frequencies for
     # initialization
@@ -22,7 +21,13 @@ def generate_sinc_filterbank(f0, f1, J, N):
     mel = min_log_mel + np.log(f / min_log_hz) / logstep
     freqs = np.where(f >= min_log_hz, mel, f / f_sp)
     # now we initialize the graph
-    freqs = 1 - freqs/freqs.max()
+    return 1 - freqs / freqs.max()
+ 
+
+def generate_sinc_filterbank(f0, f1, J, N):
+
+    freqs = get_freqs(f0, f1, J)
+
     freqs = np.stack([freqs * 0.87, freqs], 1)
     freqs[:, 1] -= freqs[:, 0]
     freq = T.Variable(freqs, name='c_freq')
@@ -63,12 +68,8 @@ def generate_morlet_filterbank(N, J, Q):
     return filters
 
 
-
-
-def generate_gaussian_filterbank(N, M, J, f0, f1):
-# gaussian parameters
-    mut = T.Variable(0.01 *  np.random.randn(J).astype('float32'),
-                                    name='xvar')
+def generate_gaussian_filterbank(N, M, J, f0, f1, modes=1):
+    # gaussian parameters
 
     f = np.linspace(f0, f1, J)
     # first we compute the mel scale center frequencies for
@@ -80,44 +81,58 @@ def generate_gaussian_filterbank(N, M, J, f0, f1):
     mel = min_log_mel + np.log(f / min_log_hz) / logstep
     freqs = np.where(f >= min_log_hz, mel, f / f_sp)
     freqs /= freqs.max()
-    freqs *= ((J-1) * 10) + 5
+    freqs *= ((J - 1) * 10) + 5
     freqs = J * 10 - freqs.astype('float32')
-    muf = T.Variable(freqs.astype('float32'), name='yvar')
-    cor = T.Variable(0. * np.random.randn(J).astype('float32'), name='cor')
-    sigmat = T.Variable(1. + 0. * np.random.randn(J).astype('float32'),
-                        name='yvar')
-    sigmaf = T.Variable(1.8+(freqs/J)**2 + 0.0 * np.random.randn(J).astype('float32'),
-                        name='cor')
+    freqs = np.concatenate(
+        [1.8 + (freqs / J)**2, 5 * np.random.rand(J * (modes - 1))])
+
+    # crate the average vectors
+    mu_init = np.stack([freqs, 0.05 * np.random.randn(J * modes)], 1)
+    mu = T.Variable(mu_init.astype('float32'), name='mu')
+
+    # create the covariance matrix
+    cor = T.Variable(0.01 * np.random.randn(J * modes).astype('float32'),
+                     name='cor')
+
+    sigma_init = np.stack([1.+0.1 * np.random.randn(J * modes),
+                            freqs], 1)
+    sigma = T.Variable(sigma_init.astype('float32'), name='sigma')
+
+    # create the mixing coefficients
+    mixing = T.Variable(np.ones((modes, 1, 1)).astype('float32'))
 
     # now apply our parametrization
-    xvar = 0.1 + T.abs(sigmat)
-    yvar = 0.1 + T.abs(sigmaf)
-    coeff = T.stop_gradient(T.sqrt(xvar * yvar)) * 0.95
-    cov = T.linalg.inv(T.stack([xvar, T.tanh(cor) * coeff,
-                   T.tanh(cor) * coeff, yvar], 1).reshape((J, 2, 2)))
+    coeff = T.stop_gradient(T.sqrt((T.abs(sigma) + 0.1).prod(1))) * 0.95
+    Id = T.eye(2)
+    cov = Id * T.expand_dims((T.abs(sigma)+0.1),1) + T.flip(Id, 0) * (T.tanh(cor) * coeff).reshape((-1, 1, 1))
+    cov_inv = T.linalg.inv(cov)
 
     # get the gaussian filters
     time = T.linspace(-5, 5, M)
     freq = T.linspace(0, J * 10, N)
     x, y = T.meshgrid(time, freq)
     grid = T.stack([x.flatten(), y.flatten()], 1)
-    centered = grid - T.expand_dims(T.stack([mut, muf], 1), 1)
-    gaussian = T.exp(-(T.matmul(centered, cov)**2).sum(-1))
-    gaussian_2d = T.reshape(gaussian/T.linalg.norm(gaussian, 2, 1,
-                                            keepdims=True), (J, N, M))
-#    for i in range(J):
-#        plt.subplot(1, J, 1+i)
-#        plt.imshow(gaussian_2d[i].get(), aspect='auto')
-#    plt.figure()
-#    for i in range(J):
-#        plt.imshow(gaussian_2d.get().sum(0), aspect='auto')
-#    
-#    plt.show()
-    return T.expand_dims(gaussian_2d,1), mut, muf, cor, sigmat, sigmaf
-
-
-
-
+    centered = grid - T.expand_dims(mu, 1)
+    # asdf
+    gaussian = T.exp(-(T.matmul(centered, cov_inv)**2).sum(-1))
+    gaussian_2d = (
+        T.abs(mixing) *
+        T.reshape(
+            gaussian /
+            T.linalg.norm(
+                gaussian,
+                2,
+                1,
+                keepdims=True),
+            (J,
+             modes,
+             N,
+             M))).sum(1)
+    for i in range(10):
+        plt.subplot(10, 1, 1+i)
+        plt.imshow(gaussian_2d.get({})[i], apsect='auto')
+    plt.show()
+    return T.expand_dims(gaussian_2d, 1), mu, cor, sigma, mixing
 
 
 def create_transform(input, args):
@@ -143,9 +158,15 @@ def create_transform(input, args):
 
     elif args.option == 'morlet':
         filters = generate_morlet_filterbank(args.bins, args.J, args.Q)
-        layer = [layers.Conv1D(input_r, W=filters.real,
-                               trainable_W=False, strides=args.hop,
-                               W_shape=filters.shape, trainable_b=False, pad='SAME')]
+        layer = [
+            layers.Conv1D(
+                input_r,
+                W=filters.real,
+                trainable_W=False,
+                strides=args.hop,
+                W_shape=filters.shape,
+                trainable_b=False,
+                pad='SAME')]
         layer.append(layers.Conv1D(input_r, W=filters.imag, trainable_W=False,
                                    strides=args.hop, W_shape=filters.shape,
                                    trainable_b=False, pad='SAME'))
@@ -178,31 +199,38 @@ def create_transform(input, args):
 
     elif 'wvd' in args.option:
         WVD = T.signal.wvd(input_r, window=args.bins * 4, L=args.L * 2,
-                            hop=args.hop, mode='same')
-        filters, mut, muf, cor, sigmat, sigmaf = generate_gaussian_filterbank(args.bins*2, 32, args.J*args.Q, 5, 22050)
-        wvd = T.convNd(WVD, filters).squeeze()
+                           hop=args.hop, mode='same')
+        filters, mu, cor, sigma, mixing = generate_gaussian_filterbank(
+            args.bins * 2, 32, args.J * args.Q, 5, 22050, args.modes)
+        print(WVD)
+#        filters=T.random.randn((args.J * args.Q, 1, args.bins*2, 5))
+        wvd = T.convNd(WVD, filters)[:, :, 0]
+        print('wvd', wvd)
         layer = [layers.Identity(T.expand_dims(wvd, 1))]
-        layer[-1]._filter = filters
-        layer[-1]._mut = mut
-        layer[-1]._muf = muf
+        layer[-1].add_variable(mu)
+        layer[-1].add_variable(cor)
+        layer[-1].add_variable(sigma)
+        layer[-1].add_variable(mixing)
+        layer[-1]._mu = mu
         layer[-1]._cor = cor
-        layer[-1]._sigmat = sigmat
-        layer[-1]._sigmaf = sigmaf
+        layer[-1]._sigma = sigma
+        layer[-1]._mixing = mixing
         layer.append(layers.Activation(layer[-1], T.abs))
 
     elif args.option == 'sinc':
-        filters, freq = generate_sinc_filterbank(5, 22050, args.J*args.Q, args.bins)
+        filters, freq = generate_sinc_filterbank(
+            5, 22050, args.J * args.Q, args.bins)
         layer = [layers.Conv1D(input.reshape((args.BS, 1, -1)), W=filters,
                                strides=args.hop, trainable_b=False,
-                                trainable_W=False,
-                                W_shape=(args.Q * args.J, 1, args.bins),
-                                pad='SAME')]
+                               trainable_W=False,
+                               W_shape=(args.Q * args.J, 1, args.bins),
+                               pad='SAME')]
         layer[-1]._freq = freq
         layer[-1]._filter = filters
         layer[-1].add_variable(freq)
         layer.append(T.expand_dims(layer[-1], 1))
         layer.append(layers.Activation(layer[-1], T.abs))
-    layer.append(T.log(layer[-1]+0.1))
+    layer.append(T.log(layer[-1] + 0.1))
     return layer
 
 
@@ -232,7 +260,6 @@ def medium_model(layer, deterministic, c):
     layer.append(layers.Activation(layer[-1], T.leaky_relu))
     layer.append(layers.Pool2D(layer[-1], (1, 3)))
 
-
     layer.append(layers.Conv2D(layer[-1], W_shape=(64, 64, 3, 3)))
     layer.append(layers.BatchNormalization(
         layer[-1], [0, 2, 3], deterministic))
@@ -244,6 +271,7 @@ def medium_model(layer, deterministic, c):
 
 def small_model(layer, deterministic, c):
     # then standard deep network
+    print(layer[-1])
     layer.append(layers.Conv2D(layer[-1], W_shape=(16, 1, 3, 3)))
     layer.append(layers.BatchNormalization(
         layer[-1], [0, 2, 3], deterministic))
