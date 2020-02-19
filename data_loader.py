@@ -23,20 +23,20 @@ def load_tut():
     test_wavs -= test_wavs.mean(1, keepdims=True)
     test_wavs /= test_wavs.max(1, keepdims=True)
 
-    valid_wavs = train_wavs[~folds[:, 0]]
-    train_wavs = train_wavs[folds[:, 0]]
+    valid_wavs = train_wavs[~folds[:, 1]]
+    train_wavs = train_wavs[folds[:, 1]]
 
-    valid_labels = train_labels[~folds[:, 0]]
-    train_labels = train_labels[folds[:, 0]]
+    valid_labels = train_labels[~folds[:, 1]]
+    train_labels = train_labels[folds[:, 1]]
 
-    return train_wavs[:, ::2, 0], train_labels, valid_wavs[:, ::2, 0], valid_labels, test_wavs[:, ::2, 0], test_labels
+    return train_wavs[:, :, 0], train_labels, valid_wavs[:, :, 0], valid_labels, test_wavs[:, :, 0], test_labels
 
 
 
 def load_mnist():
     wavs, digits, speakers = symjax.datasets.audiomnist.load()
     labels = digits
-    wavs = wavs[:, ::2]
+#    wavs = wavs[:, ::2]
     wavs -= wavs.mean(1, keepdims=True)
     wavs /= wavs.max(1, keepdims=True)
     print('orig', wavs.shape)

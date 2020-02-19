@@ -25,14 +25,16 @@ import data_loader
 parse = argparse.ArgumentParser()
 parse.add_argument('--option', type=str, choices=['melspec', 'morlet', 'sinc',
                                                 'learnmorlet', 'raw', 'rawshort',
-                                                'wvd', 'npwvd'])
+                                                'wvd', 'mwvd'])
 parse.add_argument('-J', type=int, default=5)
 parse.add_argument('-Q', type=int, default=8)
 parse.add_argument('--bins', type=int, default=512)
 parse.add_argument('-BS', type=int, default=8)
 parse.add_argument('-L', type=int, default=0)
 parse.add_argument('-LR', type=float, default=0.001)
-parse.add_argument('--model', type=str, default='base')
+parse.add_argument('--model', type=str, choices=['onelayer_nonlinear_scattering',
+    'onelayer_linear_scattering', 'joint_linear_scattering',
+    'joint_nonlinear_scattering'])
 parse.add_argument('--hop', type=int, default=0)
 parse.add_argument('--epochs', type=int, default=100)
 parse.add_argument('--dataset', type=str)
@@ -81,12 +83,7 @@ deterministic = T.Placeholder((), 'bool')
 
 layer = utils.create_transform(input, args)
 
-if args.model == 'scattering':
-    utils.scattering_model(layer, deterministic, Y)
-elif args.model == 'small':
-    utils.small_model(layer, deterministic, Y)
-elif args.model == 'medium':
-    utils.medium_model(layer, deterministic, Y)
+utils.__dict__[args.model](layer, deterministic, Y)
 
 
 for l in layer:
@@ -128,10 +125,10 @@ filename = filename.format(args.BS, args.option, args.J, args.Q, args.L,
                             args.hop)
 for run in range(10):
     TRAIN, TEST, VALID, FILTER, REP = [], [], [], [], []
-#    opt.reset()
-#    lr.reset()
-#    for v in var:
-#        v.reset()
+    opt.reset()
+    lr.reset()
+    for v in var:
+        v.reset()
 
     for epoch in range(args.epochs):
 
@@ -141,7 +138,6 @@ for run in range(10):
                                         batch_size=args.BS,
                                         option='random_see_all'):
             l.append(train(xx, xy, 0))
-            print(l[-1])
         print('FINALtrain', np.mean(l))
         TRAIN.append(np.array(l))
 
