@@ -15,7 +15,6 @@ from matplotlib import interactive
 interactive(False)
 # https://github.com/google/jax/blob/master/jax/lib/xla_bridge.py
 from jax.lib import xla_client
-from sklearn.metrics import roc_auc_score, accuracy_score
 
 import argparse
 import utils
@@ -53,7 +52,8 @@ elif args.dataset == 'usc':
     wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test = data_loader.load_usc()
     Y = labels_train.shape[1]
 elif args.dataset == 'esc':
-    wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test = data_loader.load_usc()
+    wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test = data_loader.load_esc()
+    Y = labels_train.max()+1
 elif args.dataset == 'mnist':
     wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test = data_loader.load_mnist()
     Y = labels_train.max()+1
@@ -103,8 +103,8 @@ print('loss', loss, 'accu', accuracy)
 var = sum([lay.variables() for lay in layer if isinstance(lay, layers.Layer)],
           [])
 
-lr = symjax.schedules.PiecewiseConstant(args.LR, {int(args.epochs/3): args.LR/3,
-                                        int(2*args.epochs/3): args.LR/6})
+lr = symjax.schedules.PiecewiseConstant(args.LR, {int(args.epochs/2): args.LR/3,
+                                        int(3*args.epochs/4): args.LR/6})
 print('lr', lr)
 opt = symjax.optimizers.Adam(loss, var, lr)
 updates = opt.updates
@@ -119,7 +119,7 @@ test = symjax.function(input, label, deterministic,
                           outputs=[loss, accuracy])
 #get_repr = symjax.function(input, outputs=layer[0])
 
-filename = 'save_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_'
+filename = '/mnt/project2/rb42Data/WVD/save_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_'
 filename = filename.format(args.BS, args.option, args.J, args.Q, args.L,
                             args.bins, args.model, args.LR, args.dataset,
                             args.hop)

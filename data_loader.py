@@ -159,7 +159,7 @@ def load_dyni():
 
 
 def load_esc():
-    wavs, fine, coarse, _ = symjax.datasets.esc50.load()
+    wavs, fine, coarse = symjax.datasets.esc50.load()
     wavs -= wavs.mean(1, keepdims=True)
     wavs /= np.abs(wavs).max(1, keepdims=True)
     wavs = wavs
