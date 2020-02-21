@@ -33,6 +33,24 @@ def load_tut():
 
 
 
+def load_bird():
+    wavs, digits, speakers = symjax.datasets.birdvox_70k.load()
+    labels = digits
+    wavs -= wavs.mean(1, keepdims=True)
+    wavs /= wavs.max(1, keepdims=True)
+    print('orig', wavs.shape)
+    # split
+    wavs_train, wavs_test, labels_train, labels_test = train_test_split(wavs,
+                                                                        labels,
+                                                                        train_size=0.75, seed=1)
+    wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
+                                                                          labels_train,
+                                                                      train_size=0.8, seed=1)
+ 
+    return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
+
+
+
 def load_mnist():
     wavs, digits, speakers = symjax.datasets.audiomnist.load()
     labels = digits
@@ -88,26 +106,6 @@ def load_usc():
 
 
 
-def load_bird():
-    wavs, labels = symjax.datasets.load_freefield1010(subsample=2)
-    wavs -= wavs.mean(1, keepdims=True)
-    wavs /= wavs.max(1, keepdims=True)
-    ind = np.nonzero(labels == 1)[0]
-    to_keep = np.nonzero(labels == 0)[0]
-    to_keep = np.concatenate([to_keep[:len(ind)], ind])
-    wavs = wavs[to_keep]
-    labels = labels[to_keep]
-    print('orig', wavs.shape)
-
-    # split
-    wavs_train, wavs_test, labels_train, labels_test = train_test_split(wavs,
-                                                                        labels,
-                                                                        train_size=0.75, seed=1)
-    wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
-                                                                          labels_train,
-                                                                      train_size=0.8, seed=1)
- 
-    return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
 
 
 

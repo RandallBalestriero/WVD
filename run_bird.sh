@@ -1,43 +1,29 @@
 #!/bin/bash
-# 2 and 5
-# 2 0 6 4
-GPUS=(2 0 1 2)
-BINS=1024
-HOP=512
-BS=6
-MODEL=small
+
+GPUS=(5 5 5 5 3 4 3 4 0 1 2 3 4 0 1 2 3 4 0 1 2 3 4)
+i=0
+dataset=bird
 J=5
-Q=8
-CPT=-1
+Q=16
+hop=64
+bins=1024
+bs=16
 
-for run in 0
+for LR in 0.0002
 do
-    for LR in 0.005 0.001 0.0005
+    for model in onelayer_linear_scattering onelayer_nonlinear_scattering joint_linear_scattering joint_nonlinear_scattering
     do
-        CPT=$((CPT+1))
-        GPU=${GPUS[CPT]}                                                                                                                                                     
-        screen -dmS wvd$run$LR bash -c "export CUDA_VISIBLE_DEVICES=$GPU;python -i bird.py --option wvd --bins $BINS -LR $LR -L 8 --model $MODEL --run $run  -BS $BS --hop $HOP -J $J -Q $Q"
-
-#        CPT=$((CPT+1))                                                                                                                                                       
-#        GPU=${GPUS[CPT]}                                                                                                                                                     
-#        screen -dmS npwvd$run$LR bash -c "export CUDA_VISIBLE_DEVICES=$GPU;python bird.py --option npwvd --bins $BINS -LR $LR -L 8 --model $MODEL --run $run  -BS $BS --hop $HOP -J $J -Q $Q"
- 
-#        CPT=$((CPT+1))                                                                                                                                                       
-#        GPU=${GPUS[CPT]}                                                                                                                                                     
-#        screen -dmS mor$run$LR bash -c "export CUDA_VISIBLE_DEVICES=$GPU;python bird.py --option morlet --bins $BINS -LR $LR --model $MODEL --run $run  -BS $BS --hop $HOP -J $J -Q $Q"
-#        CPT=$((CPT+1))                                                                                                                                                       
-#        GPU=${GPUS[CPT]}                                                                                                                                                     
-#        screen -dmS sinc$run$LR bash -c "export CUDA_VISIBLE_DEVICES=$GPU;python bird.py --option sinc --bins $BINS -LR $LR --model $MODEL --run $run  -BS $BS --hop $HOP -J $J -Q $Q"
-
-#        CPT=$((CPT+1))
-#        GPU=${GPUS[CPT]}
-#        screen -dmS mel$run$LR bash -c "export CUDA_VISIBLE_DEVICES=$GPU;python bird.py --option melspec --bins $BINS -LR $LR --model $MODEL --run $run  -BS $BS --hop $HOP -J $J -Q $Q"
- 
-#        CPT=$((CPT+1))                                                                                                                                                       
-#        GPU=${GPUS[CPT]}                                                                                                                                                     
-#        screen -dmS raw$run$LR bash -c "export CUDA_VISIBLE_DEVICES=$GPU;python bird.py --option raw --bins $BINS -LR $LR --model $MODEL --run $run  -BS $BS --hop $HOP -J $J -Q $Q"
-#        CPT=$((CPT+1))                                                                                                                                                       
-#        GPU=${GPUS[CPT]}                                                                                                                                                     
-#        screen -dmS lmor$run$LR bash -c "export CUDA_VISIBLE_DEVICES=$GPU;python bird.py --option learnmorlet --bins $BINS -LR $LR --model $MODEL --run $run  -BS $BS --hop $HOP -J $J -Q $Q"
+        for option in sinc learnmorlet
+        do
+            GPU=${GPUS[i]}
+    	    i=$((i+1))
+            screen -dmS mnist$dataset$LR$option bash -c "export CUDA_VISIBLE_DEVICES=$GPU;python dyni.py --dataset $dataset --option $option --bins $bins -LR $LR --model $model -BS $bs --hop $hop -J $J -Q $Q"
+        done
+#        GPU=${GPUS[i]}
+#        i=$((i+1))
+#        screen -dmS mnistwvd1$dataset$LR bash -c "export CUDA_VISIBLE_DEVICES=$GPU;python dyni.py --dataset $dataset --option wvd --bins $bins -L 6 -LR $LR --model $model -BS $bs --hop $hop -J $J -Q $Q"
+#        GPU=${GPUS[i]}
+#        i=$((i+1))
+#        screen -dmS mnistwvd2$dataset$LR bash -c "export CUDA_VISIBLE_DEVICES=$GPU;python dyni.py --dataset $dataset --option mwvd --bins $bins -L 6 -LR $LR --model $model -BS $bs --hop $hop -J $J -Q $Q" 
     done
-done    
+done
