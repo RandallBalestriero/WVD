@@ -164,20 +164,20 @@ for run in range(10):
         TEST.append(np.array(l).mean(0))
         print('FINALtest', TEST[-1])
 
-        # save filter parameters
-        if 'wvd' == args.option:
-            FILTER.append([layer[0]._mu.get({}), layer[0]._sigma.get({}), 
-                layer[0]._cor.get({}), layer[0]._filter.get({})])
-        elif 'sinc' == args.option:
-            FILTER.append([layer[0]._freq.get({}), layer[0]._filter.get({})])
-        elif 'learnmorlet' == args.option:
-            FILTER.append([layer[0]._filters.get({}), layer[0]._freqs.get({}),
-                            layer[0]._scales.get({})])
-        else:
-            FILTER = []
 
         # save the file
-        if epoch % 20 == 0 or epoch == args.epochs -1:
+        if epoch == 0 or epoch == args.epochs -1:
+            # save filter parameters
+            if 'wvd' in args.option:
+                FILTER.append([layer[0]._mu.get({}), layer[0]._sigma.get({}), 
+                    layer[0]._cor.get({}), layer[0]._filter.get({})])
+            elif 'sinc' == args.option:
+                FILTER.append([layer[0]._freq.get({}), layer[0]._filter.get({})])
+            elif 'learnmorlet' == args.option:
+                FILTER.append([layer[0]._filters.get({}), layer[0]._freqs.get({}),
+                                layer[0]._scales.get({})])
+
+
             np.savez(filename + str(run) + '.npz', train=TRAIN, test=TEST,
                      valid=VALID, filter=FILTER)
         # update the learning rate
