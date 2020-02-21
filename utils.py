@@ -227,7 +227,6 @@ def create_transform(input, args):
         layer[-1].add_variable(freq)
         layer.append(T.expand_dims(layer[-1], 1))
         layer.append(layers.Activation(layer[-1], T.abs))
-    layer.append(T.log(layer[-1] + 0.1))
     return layer
 
 
@@ -295,7 +294,7 @@ def onelayer_nonlinear_scattering(layer, deterministic, c):
     # then standard deep network
 
     N = layer[-1].shape[0]
-    features = layer[-1].mean(3).reshape([N, -1])
+    features = T.log(layer[-1].mean(3).reshape([N, -1])+0.1)
 
     layer.append(layers.Dropout(features, 0.3, deterministic))
 
@@ -312,7 +311,7 @@ def onelayer_linear_scattering(layer, deterministic, c):
     # then standard deep network
 
     N = layer[-1].shape[0]
-    features = layer[-1].mean(3).reshape([N, -1])
+    features = T.log(layer[-1].mean(3).reshape([N, -1])+0.1)
     layer.append(layers.Dropout(features, 0.3, deterministic))
     layer.append(layers.Dense(layer[-1], c))
 
@@ -328,8 +327,8 @@ def joint_nonlinear_scattering(layer, deterministic, c):
     layer.append(layers.Activation(layer[-1], T.abs))
 
     N = layer[-1].shape[0]
-    features = T.concatenate([layer[-1].mean(3).reshape([N, -1]),
-                              layer[-4].mean(3).reshape([N, -1])], 1)
+    features = T.log(T.concatenate([layer[-1].mean(3).reshape([N, -1]),
+                              layer[-4].mean(3).reshape([N, -1])], 1)+0.1)
     layer.append(layers.Dropout(features, 0.3, deterministic))
 
     layer.append(layers.Dense(layer[-1], 256))
@@ -348,8 +347,8 @@ def joint_linear_scattering(layer, deterministic, c):
     layer.append(layers.Activation(layer[-1], T.abs))
 
     N = layer[-1].shape[0]
-    features = T.concatenate([layer[-1].mean(3).reshape([N, -1]),
-                              layer[-4].mean(3).reshape([N, -1])], 1)
+    features = T.log(T.concatenate([layer[-1].mean(3).reshape([N, -1]),
+                              layer[-4].mean(3).reshape([N, -1])], 1)+0.1)
     layer.append(layers.Dropout(features, 0.3, deterministic))
 
     layer.append(layers.Dense(layer[-1], c))

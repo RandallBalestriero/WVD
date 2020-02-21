@@ -1,8 +1,8 @@
 #!/bin/bash
 
-GPUS=(6 7 6 7 6 7 6 7 6 7 3 4 7 7 7 7 5 6 7 6 2 3 4 5 6 7 2 3 4 5 6 7 2 3 4 5 6 7)
+GPUS=(3 4 7 7 7 7 5 6 7 6 2 3 4 5 6 7 2 3 4 5 6 7 2 3 4 5 6 7)
 i=0
-dataset=mnist
+dataset=esc
 J=5
 Q=16
 hop=512
@@ -13,11 +13,11 @@ for LR in 0.0002
 do
     for model in onelayer_linear_scattering onelayer_nonlinear_scattering joint_linear_scattering joint_nonlinear_scattering
     do
-        for option in sinc
+        for option in learnmorlet
         do
             GPU=${GPUS[i]}
     	    i=$((i+1))
-            screen -dmS mnist$dataset$LR$option bash -c "export CUDA_VISIBLE_DEVICES=$GPU;python dyni.py --dataset $dataset --option $option --bins $bins -LR $LR --model $model -BS $bs --hop $hop -J $J -Q $Q"
+            screen -dmS mnist$dataset$LR$option bash -c "export CUDA_VISIBLE_DEVICES=$GPU;python -i dyni.py --dataset $dataset --option $option --bins $bins -LR $LR --model $model -BS $bs --hop $hop -J $J -Q $Q"
         done
 #        GPU=${GPUS[i]}
 #        i=$((i+1))

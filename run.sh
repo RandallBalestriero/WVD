@@ -1,6 +1,6 @@
 #!/bin/bash
 
-GPUS=(2 3 4 5 6 7 2 3 4 5 6 7 2 3 4 5 6 7)
+GPUS=(5 6 7 6 2 3 4 5 6 7 2 3 4 5 6 7 2 3 4 5 6 7)
 i=0
 dataset=esc
 J=5
@@ -8,10 +8,10 @@ Q=16
 hop=512
 bins=1024
 bs=16
-
+#onelayer_linear_scattering onelayer_nonlinear_scattering joint_linear_scattering
 for LR in 0.0002
 do
-    for model in onelayer_linear_scattering onelayer_nonlinear_scattering joint_linear_scattering
+    for model in joint_nonlinear_scattering
     do
 #        for option in sinc learnmorlet
 #        do
