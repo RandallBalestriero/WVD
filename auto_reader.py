@@ -12,19 +12,19 @@ ax2 = plt.subplot(132)
 ax3 = plt.subplot(133)
 
 
-MODELS = ['wvd', 'mwvd']#'wvd', 'learnmorlet', 'melspec', 'sinc', 'morlet']
-LRS = [0.0002]#, 0.005, 0.0005]
-RUNS = range(10)
+MODELS = ['wvd', 'sinc', 'learnmorlet', 'morlet', 'melspec']#'wvd', 'learnmorlet', 'melspec', 'sinc', 'morlet']
+LRS = [0.005, 0.001, 0.0002]#, 0.005, 0.0005]
+RUNS = range(8)
 
 name = '/mnt/project2/rb42Data/WVD/save_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}.npz'
 BS=16
 J=5
 Q=16
 DNS=['onelayer_linear_scattering', 'onelayer_nonlinear_scattering',
-        'joint_linear_scattering', 'joint_nonlinear_scattering']
-HOP=512
+        'joint_linear_scattering']
+HOP=64
 BINS=1024
-DATASET='esc'
+DATASET='dyni'
 #.format(args.BS, args.option, args.J, args.Q, args.L,    
 #args.bins, args.model, args.LR, args.dataset, args.run
 T = list()
