@@ -12,9 +12,15 @@ ax2 = plt.subplot(132)
 ax3 = plt.subplot(133)
 
 
+<<<<<<< HEAD
 MODELS = ['wvd', 'sinc', 'learnmorlet']#'wvd', 'learnmorlet', 'melspec', 'sinc', 'morlet']
 LRS = [0.0002, 0.005, 0.001]
 RUNS = range(10)
+=======
+MODELS = ['wvd', 'sinc', 'learnmorlet', 'morlet', 'melspec']#'wvd', 'learnmorlet', 'melspec', 'sinc', 'morlet']
+LRS = [0.005, 0.001, 0.0002]#, 0.005, 0.0005]
+RUNS = range(8)
+>>>>>>> 9e0b460850ccf32a8c4b79606028f3fbc6bcdec7
 
 name = '/mnt/drive2/rbalSpace/WVD/save_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}.npz'
 BS=16
@@ -24,7 +30,11 @@ DNS=['onelayer_linear_scattering', 'onelayer_nonlinear_scattering',
         'joint_linear_scattering']
 HOP=64
 BINS=1024
+<<<<<<< HEAD
 DATASET='bird'
+=======
+DATASET='dyni'
+>>>>>>> 9e0b460850ccf32a8c4b79606028f3fbc6bcdec7
 #.format(args.BS, args.option, args.J, args.Q, args.L,    
 #args.bins, args.model, args.LR, args.dataset, args.run
 T = list()

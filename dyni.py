@@ -122,7 +122,7 @@ test = symjax.function(input, label, deterministic,
                           outputs=[loss, accuracy])
 #get_repr = symjax.function(input, outputs=layer[0])
 
-filename = '/mnt/drive2/rbalSpace/WVD/save_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_'
+filename = '/mnt/project2/rb42Data/WVD/save_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_'
 filename = filename.format(args.BS, args.option, args.J, args.Q, args.L,
                             args.bins, args.model, args.LR, args.dataset,
                             args.hop)

@@ -75,12 +75,12 @@ def generate_learnmorlet_filterbank(N, J, Q):
 
 
 def generate_morlet_filterbank(N, J, Q):
-    freqs = np.ones(J * Q) * 5
+    freqs = np.ones(J * Q,dtype='float32') * 5
     scales = 2**(np.linspace(-0.5, np.log2(2 * np.pi * np.log2(N)), J * Q))
-    filters = T.signal.morlet(N, s=scales.reshape((-1, 1)),
-                              w=freqs.reshape((-1, 1)))
-    filters_norm = filters / np.linalg.norm(filters, 2, 1, keepdims=True)
-    return np.expand_dims(filters_norm, 1)
+    filters = T.signal.morlet(N, s=scales.reshape((-1, 1)).astype('float32'),
+                              w=freqs.reshape((-1, 1)).astype('float32'))
+    filters_norm = filters / T.linalg.norm(filters, 2, 1, keepdims=True)
+    return T.expand_dims(filters_norm, 1)
 
 
 def generate_gaussian_filterbank(N, M, J, f0, f1, modes=1):
@@ -153,13 +153,13 @@ def create_transform(input, args):
         layer = [
             layers.Conv1D(
                 input_r,
-                W=filters.real,
+                W=filters.real(),
                 trainable_W=False,
                 strides=args.hop,
                 W_shape=filters.shape,
                 trainable_b=False,
                 pad='SAME')]
-        layer.append(layers.Conv1D(input_r, W=filters.imag, trainable_W=False,
+        layer.append(layers.Conv1D(input_r, W=filters.imag(), trainable_W=False,
                                    strides=args.hop, W_shape=filters.shape,
                                    trainable_b=False, pad='SAME'))
         layer.append(T.sqrt(layer[-1]**2 + layer[-2]**2))

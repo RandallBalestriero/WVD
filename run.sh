@@ -8,10 +8,10 @@ Q=16
 hop=512
 bins=1024
 bs=16
-#onelayer_linear_scattering onelayer_nonlinear_scattering joint_linear_scattering
+
 for LR in 0.0002
 do
-    for model in joint_nonlinear_scattering
+    for model in onelayer_linear_scattering onelayer_nonlinear_scattering joint_linear_scattering
     do
 #        for option in sinc learnmorlet
 #        do
