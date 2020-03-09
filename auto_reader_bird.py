@@ -1,78 +1,68 @@
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.metrics import roc_auc_score
 import sys
+import matplotlib
+matplotlib.use('Agg')
 
-filenames = sys.argv[1:]
+filename = sys.argv[-1]
 
-ax1 = plt.subplot(231)
-ax2 = plt.subplot(232)
-ax3 = plt.subplot(233)
-ax4 = plt.subplot(234)
-ax5 = plt.subplot(235)
-ax6 = plt.subplot(236)
-
+ax1 = plt.subplot(131)
+ax2 = plt.subplot(132)
+ax3 = plt.subplot(133)
 
 
-MODELS = ['wvd', 'npwvd', 'morlet']#, 'learnmorlet', 'melspec', 'sinc', 'raw']
-LRS = [0.001, 0.005, 0.0005]
-RUNS = [0]
-name = 'save_BIRD_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}.npz'
-BS=8
+MODELS = ['wvd', 'sinc', 'learnmorlet']#'wvd', 'learnmorlet', 'melspec', 'sinc', 'morlet']
+LRS = [0.0002, 0.005, 0.001]
+RUNS = range(10)
+
+name = '/mnt/drive2/rbalSpace/WVD/save_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}.npz'
+BS=16
 J=5
-Q=8
-DN='small'
-HOP=128
-BINS=512
+Q=16
+DNS=['onelayer_linear_scattering', 'onelayer_nonlinear_scattering',
+        'joint_linear_scattering']
+HOP=64
+BINS=1024
 DATASET='bird'
 #.format(args.BS, args.option, args.J, args.Q, args.L,    
 #args.bins, args.model, args.LR, args.dataset, args.run
 T = list()
 QQ = list()
-for RUN in RUNS:
-    for lr in LRS:
-        for c, model in enumerate(MODELS):
-            if 'wvd' in model:
-                L=8
-            else:
-                L=1
-            filename = name.format(BS, model, J, Q, L, BINS, DN, lr, DATASET, RUN)
-            f = np.load(filename)
 
-            train = f['train'].squeeze().mean(1)
-            test = f['test'].mean(2)
-            valid = f['valid'].mean(2)
+for DN in DNS:
+    for c, model in enumerate(MODELS):
+        if 'wvd' in model:
+            L=6
+        else:
+            L=0
+        for RUN in RUNS:
+            for lr in LRS:
+                filename = name.format(BS, model, J, Q, L, BINS, DN, lr, DATASET, HOP, RUN)
+                f = np.load(filename)
+    
+    #            train = f['train'].squeeze().mean(1)
+                test = f['test']
+                valid = f['valid']
+                T.append(test[valid[:,1].argmax(), 1]*100)
+                QQ.append(valid[:, 1].max())
+                print(test.shape, valid.shape, model)
+                ax1.plot(valid[:, 1], c='C{}'.format(c), label=model)
+                ax2.plot(test[:, 1], c='C{}'.format(c))
+#            ax3.plot(train, c='C{}'.format(c))
 
-            test2 = np.concatenate([f['test'][e, 2, :])
+T = np.array(T).reshape((len(DNS), len(MODELS), len(RUNS), len(LRS)))
+QQ = np.array(QQ).reshape((len(DNS), len(MODELS), len(RUNS), len(LRS)))
 
-
-            T.append(test[valid[:,1].argmax(), 1])
-            QQ.append(valid[:, 1].max())
-
-            T2.append(test[valid[:,1].argmax(), 2])
-            QQ2.append(valid[:, 2].max())
-
-            print(train.shape, test.shape, valid.shape)
-            ax1.plot(valid[:, 1], c='C{}'.format(c), label=model)
-            ax2.plot(test[:, 1], c='C{}'.format(c))
-            ax3.plot(train, c='C{}'.format(c))
-            ax5.plot(valid[:, 2], c='C{}'.format(c), label=model)
-            ax6.plot(test[:, 2], c='C{}'.format(c))
-
-
-T = np.array(T).reshape((len(RUNS), len(LRS), len(MODELS)))
-QQ = np.array(QQ).reshape((len(RUNS), len(LRS), len(MODELS)))
-
-print(MODELS)
-Tp = np.take_along_axis(T, QQ.argmax(1)[:, None, :], 1)
-print(Tp.mean(0))
-print(Tp.std(0))
-
+#print(MODELS)
+#Tp = np.take_along_axis(T, QQ.argmax(2)[:, :, :, None], 2)
+print(np.nanmean(T, 2).transpose([1, 0, 2]).reshape((len(MODELS), -1)))
+print(np.nanstd(T, 2).transpose([1, 0, 2]).reshape((len(MODELS), -1)))
+sdf
 handles, labels = ax1.get_legend_handles_labels()
 
-plt.legend(handles[:len(MODELS)], labels[:len(MODELS)])
-plt.show(block=True)
+#plt.legend(handles[:len(MODELS)], labels[:len(MODELS)])
+#plt.show(block=True)
 asdf
 
 for name in filenames:
