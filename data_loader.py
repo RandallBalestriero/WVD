@@ -13,6 +13,29 @@ def extract_patches(signal, y, length, hop):
         windows[:,b,:] = signal[:, hop*b:hop*b + length]
     return windows.reshape((-1, length)), np.repeat(y, B, 0)
 
+def load_vocal():
+    _, _, vowels, data = symjax.datasets.vocalset.load()
+    N = 2**17
+    for k, datum in enumerate(data):
+        datum = datum[::2]
+        datum -= datum.mean()
+        datum /= datum.max()
+        if len(datum) >= N:
+            data[k] = datum[:N]
+        else:
+            P = N - len(datum)
+            data[k] = np.pad(datum, [P // 2, P - P // 2])
+    data = np.array(data).astype('float32')
+    unique_vowels = np.unique(vowels)
+    y = [np.nonzero(v == unique_vowels)[0] for v in vowels]
+    y = np.array(y).astype('int32').squeeze()
+
+    train, test = train_test_split(data, y, train_size=0.75, seed=1)
+    train, valid = train_test_split(*train, train_size=0.8, seed=1)
+
+    return train[0], train[1], valid[0], valid[1], test[0], test[1]
+
+
 
 def load_tut():
     train_wavs, train_labels, test_wavs, test_labels, folds = symjax.datasets.TUTacousticscences2017.load()
@@ -31,6 +54,41 @@ def load_tut():
 
     return train_wavs[:, :, 0], train_labels, valid_wavs[:, :, 0], valid_labels, test_wavs[:, :, 0], test_labels
 
+def load_commands():
+    train_wavs, train_labels = symjax.datasets.speech_commands.load()[:2]
+
+    train_wavs -= train_wavs.mean(1, keepdims=True)
+    train_wavs /= (train_wavs.max(1, keepdims=True) + 0.01)
+
+    train, test = train_test_split(train_wavs, train_labels, train_size=0.75,
+                                   seed=1)
+    train, valid = train_test_split(*train, train_size=0.8, seed=1)
+ 
+    return train[0], train[1], valid[0], valid[1], test[0], test[1]
+
+
+
+def load_piece():
+    train_wavs, train_labels = symjax.datasets.picidae.load()[:2]
+    N = 2**17
+    wavs = np.zeros((len(train_wavs), 2 ** 17))
+    for i in range(len(train_wavs)):
+        print(train_wavs[i].shape)
+        if len(train_wavs[i].shape) == 2:
+            wavs[i, : len(train_wavs[i])] = train_wavs[i][:N, 0]
+        else:
+            wavs[i, : len(train_wavs[i])] = train_wavs[i][:N]
+
+    wavs -= wavs.mean(1, keepdims=True)
+    wavs /= wavs.max(1, keepdims=True)
+
+    train, test = train_test_split(wavs, train_labels, train_size=0.75,
+                                   seed=1)
+    train, valid = train_test_split(*train, train_size=0.8, seed=1)
+ 
+    return train[0], train[1], valid[0], valid[1], test[0], test[1]
+
+
 
 
 def load_bird():
@@ -40,14 +98,10 @@ def load_bird():
     wavs /= wavs.max(1, keepdims=True)
     print('orig', wavs.shape)
     # split
-    wavs_train, wavs_test, labels_train, labels_test = train_test_split(wavs,
-                                                                        labels,
-                                                                        train_size=0.75, seed=1)
-    wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
-                                                                          labels_train,
-                                                                      train_size=0.8, seed=1)
- 
-    return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
+    train, test = train_test_split(wavs, labels, train_size=0.75,
+                                   seed=1)
+    train, valid = train_test_split(*train, train_size=0.8, seed=1)
+    return train[0], train[1], valid[0], valid[1], test[0], test[1]
 
 
 
@@ -59,14 +113,10 @@ def load_mnist():
     wavs /= wavs.max(1, keepdims=True)
     print('orig', wavs.shape)
     # split
-    wavs_train, wavs_test, labels_train, labels_test = train_test_split(wavs,
-                                                                        labels,
-                                                                        train_size=0.75, seed=1)
-    wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
-                                                                          labels_train,
-                                                                      train_size=0.8, seed=1)
+    train, test = train_test_split(wavs, labels, train_size=0.75, seed=1)
+    train, valid = train_test_split(*train, train_size=0.8, seed=1)
  
-    return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
+    return train[0], train[1], valid[0], valid[1], test[0], test[1]
 
 
 def load_irmas():
@@ -142,17 +192,13 @@ def load_dyni():
         clas = id2class[str(idd)]
         index = class2ind[clas]
         y_train.append(index)
-    x_train /= np.abs(x_train).max(1, keepdims=True)
+    x_train /= (np.abs(x_train).max(1, keepdims=True) + 0.1)
     y_train = np.array(y_train).astype('int32')
-    wavs_train, wavs_test, labels_train, labels_test = train_test_split(x_train,
-                                                                        y_train,
-                                                                        train_size=0.75, stratify=y_train, seed=1)
-    print('after', wavs_train.shape)
-    wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
-                                                                          labels_train,
-                                                                      train_size=0.8, stratify=labels_train, seed=1)
-    print('after', wavs_train.shape)
-    return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
+    train, test = train_test_split(x_train, y_train, train_size=0.75, stratify=y_train, seed=1)
+    print('after', train[0].shape)
+    train, valid = train_test_split(*train, train_size=0.8, stratify=train[1], seed=1)
+    print('after', train[0].shape)
+    return train[0], train[1], valid[0], valid[1], test[0], test[1]
 
 
 

@@ -77,7 +77,7 @@ def generate_learnmorlet_filterbank(N, J, Q):
 def generate_morlet_filterbank(N, J, Q):
     freqs = np.ones(J * Q,dtype='float32') * 5
     scales = 2**(np.linspace(-0.5, np.log2(2 * np.pi * np.log2(N)), J * Q))
-    filters = T.signal.morlet(N, s=scales.reshape((-1, 1)).astype('float32'),
+    filters = T.signal.morlet(N, s=0.1 + scales.reshape((-1, 1)).astype('float32'),
                               w=freqs.reshape((-1, 1)).astype('float32'))
     filters_norm = filters / T.linalg.norm(filters, 2, 1, keepdims=True)
     return T.expand_dims(filters_norm, 1)
@@ -146,22 +146,17 @@ def create_transform(input, args):
         layer = [layers.Conv1D(input_r, strides=args.hop,
                                W_shape=(args.J * args.Q, 1, args.bins),
                                trainable_b=False, pad='SAME')]
-        layer.append(layers.Activation(T.expand_dims(layer[-1], 1), T.abs))
+        layer.append(layers.Lambda(T.expand_dims(layer[-1], 1), T.abs))
 
     elif args.option == 'morlet':
         filters = generate_morlet_filterbank(args.bins, args.J, args.Q)
         layer = [
-            layers.Conv1D(
-                input_r,
-                W=filters.real(),
-                trainable_W=False,
-                strides=args.hop,
-                W_shape=filters.shape,
-                trainable_b=False,
-                pad='SAME')]
-        layer.append(layers.Conv1D(input_r, W=filters.imag(), trainable_W=False,
-                                   strides=args.hop, W_shape=filters.shape,
-                                   trainable_b=False, pad='SAME'))
+            layers.Conv1D(input_r, args.J * args.Q, args.bins,
+                          W=filters.real(), trainable_W=False,
+                          stride=args.hop, trainable_b=False, pad='SAME')]
+        layer.append(layers.Conv1D(input_r, args.J * args.Q, args.bins, 
+                     W=filters.imag(), trainable_W=False,
+                     stride=args.hop, trainable_b=False, pad='SAME'))
         layer.append(T.sqrt(layer[-1]**2 + layer[-2]**2))
         layer.append(T.expand_dims(layer[-1], 1))
 
@@ -170,23 +165,19 @@ def create_transform(input, args):
             args.bins, args.J, args.Q)
 
         layer = [
-            layers.Conv1D(
-                input_r,
-                W=T.real(filters),
-                trainable_W=False,
-                strides=args.hop,
-                W_shape=filters.shape,
-                trainable_b=False, pad='SAME')]
-        layer.append(layers.Conv1D(input_r, W=T.imag(filters),
-                                   trainable_W=False, strides=args.hop,
-                                   W_shape=filters.shape,
-                                   trainable_b=False, pad='SAME'))
+            layers.Conv1D(input_r, args.J * args.Q, args.bins,
+                          W=T.real(filters), trainable_W=False,
+                          stride=args.hop, trainable_b=False, pad='SAME')]
+        layer.append(layers.Conv1D(input_r, args.J * args.Q, args.bins,
+                                   W=T.imag(filters), trainable_W=False,
+                                   stride=args.hop, trainable_b=False,
+                                   pad='SAME'))
         layer[0].add_variable(freqs)
         layer[0].add_variable(scales)
         layer[0]._filters = filters
         layer[0]._scales = scales
         layer[0]._freqs = freqs
-        layer.append(T.sqrt(layer[-1]**2 + layer[-2]**2))
+        layer.append(T.sqrt(layer[-1]**2 + layer[-2]**2+0.001))
         layer.append(T.expand_dims(layer[-1], 1))
 
     elif 'wvd' in args.option:
@@ -212,21 +203,20 @@ def create_transform(input, args):
         layer[-1]._sigma = sigma
         layer[-1]._mixing = mixing
         layer[-1]._filter = filters
-        layer.append(layers.Activation(layer[-1], T.abs))
+        layer.append(layers.Lambda(layer[-1], T.abs))
 
     elif args.option == 'sinc':
         filters, freq = generate_sinc_filterbank(
             5, 22050, args.J * args.Q, args.bins)
-        layer = [layers.Conv1D(input.reshape((args.BS, 1, -1)), W=filters,
-                               strides=args.hop, trainable_b=False,
-                               trainable_W=False,
-                               W_shape=(args.Q * args.J, 1, args.bins),
-                               pad='SAME')]
+        layer = [layers.Conv1D(input.reshape((args.BS, 1, -1)),
+                               args.J * args.Q, args.bins, W=filters,
+                               stride=args.hop, trainable_b=False,
+                               trainable_W=False, pad='SAME')]
         layer[-1]._freq = freq
         layer[-1]._filter = filters
         layer[-1].add_variable(freq)
         layer.append(T.expand_dims(layer[-1], 1))
-        layer.append(layers.Activation(layer[-1], T.abs))
+        layer.append(layers.Lambda(layer[-1], T.abs))
     return layer
 
 
@@ -235,31 +225,31 @@ def medium_model(layer, deterministic, c):
     layer.append(layers.Conv2D(layer[-1], W_shape=(16, 1, 3, 3)))
     layer.append(layers.BatchNormalization(
         layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Activation(layer[-1], T.leaky_relu))
+    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
     layer.append(layers.Pool2D(layer[-1], (2, 3)))
 
     layer.append(layers.Conv2D(layer[-1], W_shape=(32, 16, 3, 3)))
     layer.append(layers.BatchNormalization(
         layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Activation(layer[-1], T.leaky_relu))
+    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
     layer.append(layers.Pool2D(layer[-1], (1, 2)))
 
     layer.append(layers.Conv2D(layer[-1], W_shape=(32, 32, 3, 3)))
     layer.append(layers.BatchNormalization(
         layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Activation(layer[-1], T.leaky_relu))
+    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
     layer.append(layers.Pool2D(layer[-1], (2, 3)))
 
     layer.append(layers.Conv2D(layer[-1], W_shape=(64, 32, 3, 3)))
     layer.append(layers.BatchNormalization(
         layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Activation(layer[-1], T.leaky_relu))
+    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
     layer.append(layers.Pool2D(layer[-1], (1, 3)))
 
     layer.append(layers.Conv2D(layer[-1], W_shape=(64, 64, 3, 3)))
     layer.append(layers.BatchNormalization(
         layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Activation(layer[-1], T.leaky_relu))
+    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
 
     layer.append(layers.Dense(layer[-1], c))
     return layer
@@ -271,19 +261,19 @@ def small_model(layer, deterministic, c):
     layer.append(layers.Conv2D(layer[-1], W_shape=(16, 1, 3, 3)))
     layer.append(layers.BatchNormalization(
         layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Activation(layer[-1], T.leaky_relu))
+    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
     layer.append(layers.Pool2D(layer[-1], (3, 3)))
 
     layer.append(layers.Conv2D(layer[-1], W_shape=(16, 16, 3, 3)))
     layer.append(layers.BatchNormalization(
         layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Activation(layer[-1], T.leaky_relu))
+    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
     layer.append(layers.Pool2D(layer[-1], (3, 3)))
 
     layer.append(layers.Conv2D(layer[-1], W_shape=(16, 16, 3, 3)))
     layer.append(layers.BatchNormalization(
         layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Activation(layer[-1], T.leaky_relu))
+    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
     layer.append(layers.Pool2D(layer[-1], (1, 3)))
 
     layer.append(layers.Dense(T.leaky_relu(layer[-1]), c))
@@ -300,8 +290,8 @@ def onelayer_nonlinear_scattering(layer, deterministic, c):
 
     layer.append(layers.Dense(features, 256))
     layer.append(layers.BatchNormalization(layer[-1], [0], deterministic))
-    layer.append(layers.Activation(layer[-1], T.leaky_relu))
-    layer.append(layers.Dropout(layer[-1], 0.3, deterministic))
+    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
+    layer.append(layers.Dropout(layer[-1], 0.1, deterministic))
 
     layer.append(layers.Dense(layer[-1], c))
 
@@ -312,7 +302,7 @@ def onelayer_linear_scattering(layer, deterministic, c):
 
     N = layer[-1].shape[0]
     features = T.log(layer[-1].mean(3).reshape([N, -1])+0.1)
-    layer.append(layers.Dropout(features, 0.3, deterministic))
+    layer.append(layers.Dropout(features, 0.1, deterministic))
     layer.append(layers.Dense(layer[-1], c))
 
     return layer
@@ -322,18 +312,18 @@ def onelayer_linear_scattering(layer, deterministic, c):
 def joint_nonlinear_scattering(layer, deterministic, c):
     # then standard deep network
 
-    layer.append(layers.Conv2D(layer[-1], W_shape=(64, 1, 5, 5)))
-    layer.append(layers.BatchNormalization(layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Activation(layer[-1], T.abs))
+    layer.append(layers.Conv2D(layer[-1], 64, (5, 5)))
+#    layer.append(layers.BatchNormalization(layer[-1], [0, 2, 3], deterministic))
+    layer.append(layers.Lambda(layer[-1], T.abs))
 
     N = layer[-1].shape[0]
     features = T.log(T.concatenate([layer[-1].mean(3).reshape([N, -1]),
-                              layer[-4].mean(3).reshape([N, -1])], 1)+0.1)
+                              layer[-3].mean(3).reshape([N, -1])], 1)+0.1)
     layer.append(layers.Dropout(features, 0.3, deterministic))
 
     layer.append(layers.Dense(layer[-1], 256))
     layer.append(layers.BatchNormalization(layer[-1], [0], deterministic))
-    layer.append(layers.Activation(layer[-1], T.leaky_relu))
+    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
     layer.append(layers.Dropout(layer[-1], 0.3, deterministic))
 
     layer.append(layers.Dense(layer[-1], c))
@@ -342,14 +332,14 @@ def joint_nonlinear_scattering(layer, deterministic, c):
 def joint_linear_scattering(layer, deterministic, c):
     # then standard deep network
 
-    layer.append(layers.Conv2D(layer[-1], W_shape=(64, 1, 5, 5)))
+    layer.append(layers.Conv2D(T.log(layer[-1] + 0.1), 64, (32, 16)))
     layer.append(layers.BatchNormalization(layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Activation(layer[-1], T.abs))
+    layer.append(layers.Lambda(layer[-1], T.abs))
 
     N = layer[-1].shape[0]
-    features = T.log(T.concatenate([layer[-1].mean(3).reshape([N, -1]),
-                              layer[-4].mean(3).reshape([N, -1])], 1)+0.1)
-    layer.append(layers.Dropout(features, 0.3, deterministic))
+    features = T.concatenate([layer[-1].mean(3).reshape([N, -1]),
+                            T.log(layer[-4]+0.1).mean(3).reshape([N, -1])], 1)
+    layer.append(layers.Dropout(features, 0.1, deterministic))
 
     layer.append(layers.Dense(layer[-1], c))
     return layer
@@ -360,30 +350,30 @@ def model_bird(layer, deterministic, c):
     layer.append(layers.Conv2D(layer[-1], W_shape=(16, 1, 3, 3)))
     layer.append(layers.BatchNormalization(
         layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Activation(layer[-1], T.leaky_relu))
+    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
     layer.append(layers.Pool2D(layer[-1], (3, 3)))
 
     layer.append(layers.Conv2D(layer[-1], W_shape=(16, 16, 3, 3)))
     layer.append(layers.BatchNormalization(
         layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Activation(layer[-1], T.leaky_relu))
+    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
     layer.append(layers.Pool2D(layer[-1], (2, 3)))
 
     layer.append(layers.Conv2D(layer[-1], W_shape=(32, 16, 3, 3)))
     layer.append(layers.BatchNormalization(
         layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Activation(layer[-1], T.leaky_relu))
+    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
     layer.append(layers.Pool2D(layer[-1], (1, 2)))
     layer.append(layers.Dropout(layer[-1], 0.3, deterministic))
 
     layer.append(layers.Dense(layer[-1], 256))
     layer.append(layers.BatchNormalization(layer[-1], [0], deterministic))
-    layer.append(layers.Activation(layer[-1], T.leaky_relu))
+    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
     layer.append(layers.Dropout(layer[-1], 0.5, deterministic))
 
     layer.append(layers.Dense(layer[-1], 32))
     layer.append(layers.BatchNormalization(layer[-1], [0], deterministic))
-    layer.append(layers.Activation(layer[-1], T.leaky_relu))
+    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
     layer.append(layers.Dropout(layer[-1], 0.5, deterministic))
 
     layer.append(layers.Dense(T.leaky_relu(layer[-1]), c))

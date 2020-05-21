@@ -69,6 +69,18 @@ elif args.dataset == 'bird':
 elif args.dataset == 'tut':
     wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test = data_loader.load_tut()
     Y = labels_train.max()+1
+elif args.dataset == 'vocal':
+    wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test = data_loader.load_vocal()
+    Y = labels_train.max()+1
+elif args.dataset == 'piece':
+    wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test = data_loader.load_piece()
+    Y = labels_train.max()+1
+elif args.dataset == 'commands':
+    wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test = data_loader.load_commands()
+    Y = labels_train.max()+1
+
+
+
 
 
 
@@ -109,7 +121,7 @@ var = sum([lay.variables() for lay in layer if isinstance(lay, layers.Layer)],
 lr = symjax.schedules.PiecewiseConstant(args.LR, {int(args.epochs/2): args.LR/3,
                                         int(3*args.epochs/4): args.LR/6})
 print('lr', lr)
-opt = symjax.optimizers.Adam(loss, var, lr)
+opt = symjax.optimizers.Adam(loss, lr, params=var)
 updates = opt.updates
 for lay in layer:
     if isinstance(lay, layers.Layer):
@@ -122,7 +134,7 @@ test = symjax.function(input, label, deterministic,
                           outputs=[loss, accuracy])
 #get_repr = symjax.function(input, outputs=layer[0])
 
-filename = '/mnt/project2/rb42Data/WVD/save_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_'
+filename = '/mnt/docker_backup/rbalStuff/WVD/save_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_'
 filename = filename.format(args.BS, args.option, args.J, args.Q, args.L,
                             args.bins, args.model, args.LR, args.dataset,
                             args.hop)
