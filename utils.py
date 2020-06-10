@@ -7,7 +7,6 @@ import numpy
 import sys
 import matplotlib.pyplot as plt
 
-sys.path.insert(0, "../TheanoXLA")
 
 
 def get_scaled_freqs(f0, f1, J):
@@ -220,65 +219,6 @@ def create_transform(input, args):
     return layer
 
 
-def medium_model(layer, deterministic, c):
-    # then standard deep network
-    layer.append(layers.Conv2D(layer[-1], W_shape=(16, 1, 3, 3)))
-    layer.append(layers.BatchNormalization(
-        layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
-    layer.append(layers.Pool2D(layer[-1], (2, 3)))
-
-    layer.append(layers.Conv2D(layer[-1], W_shape=(32, 16, 3, 3)))
-    layer.append(layers.BatchNormalization(
-        layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
-    layer.append(layers.Pool2D(layer[-1], (1, 2)))
-
-    layer.append(layers.Conv2D(layer[-1], W_shape=(32, 32, 3, 3)))
-    layer.append(layers.BatchNormalization(
-        layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
-    layer.append(layers.Pool2D(layer[-1], (2, 3)))
-
-    layer.append(layers.Conv2D(layer[-1], W_shape=(64, 32, 3, 3)))
-    layer.append(layers.BatchNormalization(
-        layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
-    layer.append(layers.Pool2D(layer[-1], (1, 3)))
-
-    layer.append(layers.Conv2D(layer[-1], W_shape=(64, 64, 3, 3)))
-    layer.append(layers.BatchNormalization(
-        layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
-
-    layer.append(layers.Dense(layer[-1], c))
-    return layer
-
-
-def small_model(layer, deterministic, c):
-    # then standard deep network
-    print(layer[-1])
-    layer.append(layers.Conv2D(layer[-1], W_shape=(16, 1, 3, 3)))
-    layer.append(layers.BatchNormalization(
-        layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
-    layer.append(layers.Pool2D(layer[-1], (3, 3)))
-
-    layer.append(layers.Conv2D(layer[-1], W_shape=(16, 16, 3, 3)))
-    layer.append(layers.BatchNormalization(
-        layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
-    layer.append(layers.Pool2D(layer[-1], (3, 3)))
-
-    layer.append(layers.Conv2D(layer[-1], W_shape=(16, 16, 3, 3)))
-    layer.append(layers.BatchNormalization(
-        layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
-    layer.append(layers.Pool2D(layer[-1], (1, 3)))
-
-    layer.append(layers.Dense(T.leaky_relu(layer[-1]), c))
-    return layer
-
 
 def onelayer_nonlinear_scattering(layer, deterministic, c):
     # then standard deep network
@@ -307,28 +247,6 @@ def onelayer_linear_scattering(layer, deterministic, c):
 
     return layer
 
-
-
-def joint_nonlinear_scattering(layer, deterministic, c):
-    # then standard deep network
-
-    layer.append(layers.Conv2D(layer[-1], 64, (5, 5)))
-#    layer.append(layers.BatchNormalization(layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Lambda(layer[-1], T.abs))
-
-    N = layer[-1].shape[0]
-    features = T.log(T.concatenate([layer[-1].mean(3).reshape([N, -1]),
-                              layer[-3].mean(3).reshape([N, -1])], 1)+0.1)
-    layer.append(layers.Dropout(features, 0.3, deterministic))
-
-    layer.append(layers.Dense(layer[-1], 256))
-    layer.append(layers.BatchNormalization(layer[-1], [0], deterministic))
-    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
-    layer.append(layers.Dropout(layer[-1], 0.3, deterministic))
-
-    layer.append(layers.Dense(layer[-1], c))
-    return layer
-
 def joint_linear_scattering(layer, deterministic, c):
     # then standard deep network
 
@@ -345,36 +263,3 @@ def joint_linear_scattering(layer, deterministic, c):
     return layer
 
 
-def model_bird(layer, deterministic, c):
-    # then standard deep network
-    layer.append(layers.Conv2D(layer[-1], W_shape=(16, 1, 3, 3)))
-    layer.append(layers.BatchNormalization(
-        layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
-    layer.append(layers.Pool2D(layer[-1], (3, 3)))
-
-    layer.append(layers.Conv2D(layer[-1], W_shape=(16, 16, 3, 3)))
-    layer.append(layers.BatchNormalization(
-        layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
-    layer.append(layers.Pool2D(layer[-1], (2, 3)))
-
-    layer.append(layers.Conv2D(layer[-1], W_shape=(32, 16, 3, 3)))
-    layer.append(layers.BatchNormalization(
-        layer[-1], [0, 2, 3], deterministic))
-    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
-    layer.append(layers.Pool2D(layer[-1], (1, 2)))
-    layer.append(layers.Dropout(layer[-1], 0.3, deterministic))
-
-    layer.append(layers.Dense(layer[-1], 256))
-    layer.append(layers.BatchNormalization(layer[-1], [0], deterministic))
-    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
-    layer.append(layers.Dropout(layer[-1], 0.5, deterministic))
-
-    layer.append(layers.Dense(layer[-1], 32))
-    layer.append(layers.BatchNormalization(layer[-1], [0], deterministic))
-    layer.append(layers.Lambda(layer[-1], T.leaky_relu))
-    layer.append(layers.Dropout(layer[-1], 0.5, deterministic))
-
-    layer.append(layers.Dense(T.leaky_relu(layer[-1]), c))
-    return layer

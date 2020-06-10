@@ -105,6 +105,36 @@ def load_bird():
 
 
 
+def load_fsd():
+    data = symjax.datasets.FSDKaggle2018.load()
+    N = 2**17
+    wavs_train = np.zeros((len(data['wavs_train']), 2 ** 17))
+    for i in range(len(data['wavs_train'])):
+        w = data['wavs_train'][i]
+        wavs_train[i, : len(w)] = w[:N]
+
+    wavs_test = np.zeros((len(data['wavs_test']), 2 ** 17))
+    for i in range(len(data['wavs_test'])):
+        w = data['wavs_test'][i]
+        R = 2 ** 17 - len(w)
+        if R > 0:
+            wavs_test[i, R // 2: R // 2 + len(w)] = w
+        else:
+            wavs_test[i, : len(w)] = w[:N]
+
+    labels_train = (np.unique(data['labels_train']) == np.array(data['labels_train'])[:, None]).argmax(1).astype('int32')
+    labels_test = (np.unique(data['labels_test']) == np.array(data['labels_test'])[:, None]).argmax(1).astype('int32')
+
+    wavs_train -= wavs_train.mean(1, keepdims=True)
+    wavs_train /= wavs_train.max(1, keepdims=True)
+    wavs_test -= wavs_test.mean(1, keepdims=True)
+    wavs_test /= wavs_test.max(1, keepdims=True)
+
+    train, valid = train_test_split(wavs_train, labels_train, train_size=0.7, seed=1)
+    return train[0], train[1], valid[0], valid[1], wavs_test, labels_test
+
+
+
 def load_mnist():
     wavs, digits, speakers = symjax.datasets.audiomnist.load()
     labels = digits
@@ -203,23 +233,22 @@ def load_dyni():
 
 
 def load_esc():
-    wavs, fine, coarse = symjax.datasets.esc50.load()
+    wavs, fine, coarse, _, esc10 = symjax.datasets.esc.load()
+    wavs = wavs[np.nonzero(esc10)[0]]
+    fine = fine[np.nonzero(esc10)[0]]
+    fine = (np.unique(fine) == fine[:, None]).argmax(1).astype('int32')
     wavs -= wavs.mean(1, keepdims=True)
     wavs /= np.abs(wavs).max(1, keepdims=True)
-    labels = coarse
+    wavs = wavs[:, ::2]
+    labels = fine
     print('origin', wavs.shape)
     
     # split into train valid and test
     print(wavs.shape, labels.shape)
-    wavs_train, wavs_test, labels_train, labels_test = train_test_split(wavs,
-                                                                        labels,
-                                                                        train_size=0.75, stratify=labels, seed=1)
-    print('after', wavs_train.shape)
-    wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
-                                                                          labels_train,
-                                                                      train_size=0.8, stratify=labels_train, seed=1)
-
-    return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
+    train, test = train_test_split(wavs, labels, train_size=0.75, stratify=labels, seed=1)
+    print('after', train[0].shape)
+    train, valid = train_test_split(*train, train_size=0.8, stratify=train[1], seed=1)
+    return train[0], train[1], valid[0], valid[1], test[0], test[1]
  
 
 def load_gtzan():
@@ -230,14 +259,7 @@ def load_gtzan():
     print('origin', wavs.shape)
     
     # split into train valid and test
-    print(wavs.shape, labels.shape)
-    wavs_train, wavs_test, labels_train, labels_test = train_test_split(wavs,
-                                                                        labels,
-                                                                        train_size=0.75, stratify=labels, seed=1)
-    print('after', wavs_train.shape)
-    wavs_train, wavs_valid, labels_train, labels_valid = train_test_split(wavs_train,
-                                                                          labels_train,
-                                                                      train_size=0.8, stratify=labels_train, seed=1)
-
-    return wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test
+    train, test = train_test_split(wavs, labels, train_size=0.75, stratify=labels, seed=1)
+    train_valid = train_test_split(*train, train_size=0.8, stratify=train[1], seed=1)
+    return train[0], train[1], valid[0], valid[1], test[0], test[1]
  

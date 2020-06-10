@@ -78,7 +78,9 @@ elif args.dataset == 'piece':
 elif args.dataset == 'commands':
     wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test = data_loader.load_commands()
     Y = labels_train.max()+1
-
+elif args.dataset == 'fsd':
+    wavs_train, labels_train, wavs_valid, labels_valid, wavs_test, labels_test = data_loader.load_fsd()
+    Y = labels_train.max()+1
 
 
 

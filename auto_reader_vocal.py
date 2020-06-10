@@ -12,19 +12,19 @@ ax2 = plt.subplot(132)
 ax3 = plt.subplot(133)
 
 
-MODELS = ['morlet', 'wvd', 'sinc', 'learnmorlet'][1:3]#'wvd', 'learnmorlet', 'melspec', 'sinc', 'morlet']
+MODELS = ['morlet', 'wvd', 'sinc', 'learnmorlet']#'wvd', 'learnmorlet', 'melspec', 'sinc', 'morlet']
 LRS = [0.0002, 0.001, 0.005]
-RUNS = range(1)
+RUNS = range(10)
 
 name = '/mnt/docker_backup/rbalStuff/WVD/save_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}.npz'
 DNS=['onelayer_linear_scattering', 'onelayer_nonlinear_scattering',
         'joint_linear_scattering']
-HOP=64 # OR 64 (dyni bird) 256 (mnist) 512 (piece)
+HOP=256 # OR 64 (dyni bird commands) 256 (mnist piece fsd) 512 (piece)
 BINS=1024
 BS=16
 J=5
 Q=16
-DATASET='commands'
+DATASET='fsd'
 #.format(args.BS, args.option, args.J, args.Q, args.L,    
 #args.bins, args.model, args.LR, args.dataset, args.run
 T = list()
@@ -44,12 +44,12 @@ for DN in DNS:
     #            train = f['train'].squeeze().mean(1)
                 test = f['test']
                 valid = f['valid']
-                if valid[:, 1].max() < 0.1:
-                    T.append(np.nan)
+#                if valid[:, 1].max() < 0.1:
+#                    T.append(np.nan)
 
-                else:
-                    T.append(test[valid[:,1].argmax(), 1]*100)
-                    QQ.append(valid[:, 1].max())
+#                else:
+                T.append(test[valid[:,1].argmax(), 1]*100)
+                QQ.append(valid[:, 1].max())
                 print(test.shape, valid.shape, model, lr, DN)
 #                ax1.plot(valid[:, 1], c='C{}'.format(c), label=model)
 #                ax2.plot(test[:, 1], c='C{}'.format(c))
@@ -61,7 +61,7 @@ T = np.nanmean(T, 1).transpose((0, 2, 1)).reshape((-1, len(LRS))).T
 
 #print(MODELS)
 #T = np.take_along_axis(T, QQ.argmax(1)[:, None,:, :], 1).squeeze()
-print(tabulate.tabulate(T.round(2), tablefmt='latex'))
+print(tabulate.tabulate(T.round(1), tablefmt='latex'))
 #print(T.std(1))
 sdf
 handles, labels = ax1.get_legend_handles_labels()

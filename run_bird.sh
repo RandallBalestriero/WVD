@@ -1,22 +1,24 @@
 #!/bin/bash
 
-GPUS=(0 2 4 0 2 7 0 1 2)
+GPUS=(5 6 7 4 0 1 2 3 4 0 1 2 3 4 0 1 2 0 1 2 2 1 2 1 5 6 7 0 1 4 0)
 i=0
-dataset=commands
+dataset=fsd
 J=5
 Q=16
-hop=64
+hop=256
 bins=1024
 bs=16
 #onelayer_linear_scattering onelayer_nonlinear_scattering joint_l 
 #                                                inear_scattering
 # 0.005 0.001 0.0002
-for LR in 0.005 0.001 0.0002
+for LR in 0.0002 0.001 0.005
 do
-    for model in onelayer_linear_scattering onelayer_nonlinear_scattering joint_linear_scattering
+    echo $LR
+    for model in onelayer_linear_scattering onelayer_nonlinear_scattering
     do
-        for option in morlet
+        for option in learnmorlet
         do
+	    echo $option
             GPU=${GPUS[i]}
     	    i=$((i+1))
             screen -dmS mnist$dataset$LR$option$model bash -c "export CUDA_VISIBLE_DEVICES=$GPU;python dyni.py --dataset $dataset --option $option --bins $bins -LR $LR --model $model -BS $bs --hop $hop -J $J -Q $Q"
