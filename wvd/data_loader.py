@@ -127,11 +127,11 @@ def get(name):
         ) = load_fsd()
         Y = labels_train.max() + 1
     elif name == "fake":
-        wavs_train = np.random.randn(500, 2 ** 15)
+        wavs_train = np.random.randn(500, 2 ** 14)
         labels_train = (np.random.randn(500) > 0).astype(int)
-        wavs_test = np.random.randn(500, 2 ** 15)
+        wavs_test = np.random.randn(500, 2 ** 14)
         labels_test = (np.random.randn(500) > 0).astype(int)
-        wavs_valid = np.random.randn(500, 2 ** 15)
+        wavs_valid = np.random.randn(500, 2 ** 14)
         labels_valid = (np.random.randn(500) > 0).astype(int)
         Y = 2
     return (
@@ -208,15 +208,22 @@ def load_tut():
 
 
 def load_commands():
-    train_wavs, train_labels = nds.timeseries.speech_commands.load()[:2]
+    data = nds.timeseries.speech_commands.load()
 
+    train_wavs, train_labels = data["wavs"], data["labels"]
     train_wavs -= train_wavs.mean(1, keepdims=True)
     train_wavs /= train_wavs.max(1, keepdims=True) + 0.01
 
     train, test = train_test_split(
-        train_wavs, train_labels, train_size=0.75, seed=1
+        train_wavs,
+        train_labels,
+        train_size=0.75,
+        seed=1,
+        stratify=train_labels,
     )
-    train, valid = train_test_split(*train, train_size=0.8, seed=1)
+    train, valid = train_test_split(
+        *train, train_size=0.8, seed=1, stratify=train[1]
+    )
 
     return train[0], train[1], valid[0], valid[1], test[0], test[1]
 
@@ -242,8 +249,8 @@ def load_piece():
 
 
 def load_bird():
-    wavs, digits, speakers = nds.timeseries.birdvox_70k.load()
-    labels = digits
+    data = nds.timeseries.birdvox_70k.load()
+    wavs, labels = data["wavs"], data["labels"]
     wavs -= wavs.mean(1, keepdims=True)
     wavs /= wavs.max(1, keepdims=True)
     print("orig", wavs.shape)

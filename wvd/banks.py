@@ -26,11 +26,11 @@ def sinc(J, Q, N):
     apod_filters = sincs * T.signal.hanning(N).reshape((-1, 1))
 
     # normalize
-    normed_filters = apod_filters / T.linalg.norm(
-        apod_filters, 2, 0, keepdims=True
-    )
+    # normed_filters = apod_filters / T.linalg.norm(
+    #     apod_filters, 2, 0, keepdims=True
+    # )
 
-    filters = T.transpose(normed_filters)[::-1]
+    filters = T.transpose(apod_filters)[::-1]
 
     return filters
 
@@ -49,7 +49,7 @@ def morlet(J, Q, trainable=False):
         scales_ * 2.5, 0.5 / scales_, time
     )
 
-    filters /= T.linalg.norm(filters, 2, 1, keepdims=True)
+    #    filters /= T.linalg.norm(filters, 2, 1, keepdims=True)
 
     return filters[::-1]
 

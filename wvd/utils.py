@@ -44,13 +44,13 @@ def transform(input, args):
         filters = banks.morlet(
             args.J, args.Q, trainable="learn" in args.option
         )
-        output = T.abs(fourier_conv(input_r, filters))
+        output = T.abs(fourier_conv(input_r, filters)[..., :: args.hop])
         output = T.expand_dims(output, 1)
 
     elif args.option == "sinc":
-        N = 15 * 2 ** J
-        sincs = banks.sinc(J, Q, N)
-        output = T.abs(fourier_conv(input_r, sincs))
+        N = 15 * 2 ** args.J
+        sincs = banks.sinc(args.J, args.Q, N)
+        output = T.abs(fourier_conv(input_r, sincs)[..., :: args.hop])
         output = T.expand_dims(output, 1)
 
     elif "wvd" in args.option:
@@ -134,26 +134,37 @@ def joint_linear_scattering(layer, deterministic, c):
 
 
 def deep_net(input, deterministic, c):
-    # then standard deep network
 
-    N = input.shape[0]
-    output = T.log(input[:, :, :, ::2] + 0.1)
-    output = layers.Conv2D(output, 8, (3, 3), b=None, strides=2)
+    output = layers.Conv2D(input, 8, (3, 3), b=None, strides=(2, 3))
     output = layers.BatchNormalization(
         output, [1], deterministic=deterministic
     )
     output = nn.relu(output)
+    print(output)
+
+    output = layers.Conv2D(output, 8, (3, 3), b=None, strides=(1, 2))
+    output = layers.BatchNormalization(
+        output, [1], deterministic=deterministic
+    )
+    output = nn.relu(output)
+    print(output)
 
     output = layers.Conv2D(output, 16, (3, 3), b=None, strides=(1, 2))
     output = layers.BatchNormalization(
         output, [1], deterministic=deterministic
     )
     output = nn.relu(output)
+    print(output)
 
-    output = layers.Conv2D(output, 16, (3, 3), b=None, strides=(1, 2))
+    output = layers.Conv2D(output, 32, (3, 3), b=None, strides=(2, 2))
     output = layers.BatchNormalization(
         output, [1], deterministic=deterministic
-    )
-    output = nn.relu(output).mean(-1)
+    ).mean(-1)
+    output = nn.relu(output)
+    print(output)
+
+    output = layers.Dropout(output, 0.3, deterministic)
+    output = layers.Dense(output, 2 * c)
+    output = nn.relu(output)
 
     return layers.Dense(output, c)

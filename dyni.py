@@ -24,7 +24,7 @@ parse.add_argument(
 )
 parse.add_argument("-J", type=int, default=5)
 parse.add_argument("-Q", type=int, default=8)
-parse.add_argument("--bins", type=int, default=512)
+parse.add_argument("--bins", type=int, default=1024)
 parse.add_argument("-BS", type=int, default=16)
 parse.add_argument("-L", type=int, default=0)
 parse.add_argument("-lr", type=float, default=0.001)
@@ -47,7 +47,7 @@ parse.add_argument("--modes", type=int, default=1)
 args = parse.parse_args()
 
 if args.hop == 0:
-    args.hop = args.bins // 8
+    args.hop = args.bins // 16
 
 
 # DATASET LOADING
@@ -99,16 +99,10 @@ train = symjax.function(
 test = symjax.function(input, label, deterministic, outputs=[loss, accuracy])
 get_repr = symjax.function(input, outputs=tf)
 
-filename = "/mnt/docker_backup/rbalStuff/WVD/resave_{}_{}_{}_{}_{}_{}_{}_"
+filename = "data/resave_{}_{}_{}_{}_{}_"
 
 filename = filename.format(
-    args.option,
-    args.wvdinit,
-    args.J,
-    args.Q,
-    args.bins,
-    args.model,
-    args.dataset,
+    args.option, args.wvdinit, args.model, args.dataset, args.lr,
 )
 for run in range(10):
     TRAIN, TEST, VALID, FILTER, REP = [], [], [], [], []
@@ -150,7 +144,7 @@ for run in range(10):
 
         # save the file
         if epoch == 0 or epoch == args.epochs - 1:
-            REP.append(get_repr(wavs_train[: args.batch_size]))
+            REP.append(get_repr(wavs_train[: args.BS]))
             # save filter parameters
             # if "wvd" in args.option:
             #     FILTER.append(
@@ -181,4 +175,5 @@ for run in range(10):
                 valid=VALID,
                 filter=FILTER,
                 rep=REP,
+                wavs=wavs_train[: args.BS],
             )
