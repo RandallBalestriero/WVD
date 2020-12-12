@@ -134,9 +134,9 @@ def gaussian2d(N, J, Q, init="gabor", window=6):
 
         eleven = window / M
         sigma_t = T.Variable(0.2 * T.ones_like(rho) * eleven, name="sigma_t")
-        sigma_f = T.Variable(0.18 * T.ones_like(rho) / eleven, name="sigma_t")
+        sigma_f = T.Variable(0.18 * T.ones_like(rho) / eleven, name="sigma_f")
     # parametrize the rho parameter to prevent determinant of 0
-    rho_ = 0.9 * T.tanh(rho) * (sigma_t ** 2 * sigma_f ** 2)
+    rho_ = 0.9 * T.tanh(rho) * sigma_t * sigma_f
     # produce the 2x2 covariance matrix
     covs = T.stack([sigma_t ** 2, rho_, rho_, sigma_f ** 2], 1).reshape(
         (-1, 2, 2)
@@ -147,3 +147,37 @@ def gaussian2d(N, J, Q, init="gabor", window=6):
     mcov = T.einsum("knd,kdb,knb->kn", centered, covs_inv, centered)
     gaussian = T.exp(-mcov)
     return gaussian.reshape((J * Q, N, M))
+
+
+def gaussian_example(N):
+    # get the gaussian filters
+    M = 3 * 2 ** 6
+    freq = T.linspace(0, np.pi, N)
+    time = T.linspace(-2, 2, M)
+    x, y = T.meshgrid(time, freq)
+    grid = T.stack([x.flatten(), y.flatten()], 1)
+
+    # create the covariance parameters
+    rho = T.Variable(
+        np.concatenate([10 * np.ones(1), np.zeros(3)]), name="cor"
+    )
+    positions = T.zeros(4)
+
+    eleven = 6 / M
+    sigma_t = T.Variable(np.array([0.4, 0.02, 1, 0.1]), name="sigma_t")
+    sigma_f = T.Variable(np.array([0.1, 0.02, 0.03, 0.5]), name="sigma_t")
+    mus = T.stack([positions, np.array([2.3, 3, 2, 1])], 1)
+
+    # parametrize the rho parameter to prevent determinant of 0
+    rho_ = 0.95 * T.tanh(rho) * sigma_t * sigma_f
+    # produce the 2x2 covariance matrix
+    print(rho_.get())
+    covs = T.stack([sigma_t ** 2, rho_, rho_, sigma_f ** 2], 1).reshape(
+        (-1, 2, 2)
+    )
+    covs_inv = T.linalg.inv(T.eye(2) * 0.00001 + covs)
+
+    centered = grid - T.expand_dims(mus, 1)
+    mcov = T.einsum("knd,kdb,knb->kn", centered, covs_inv, centered)
+    gaussian = T.exp(-mcov)
+    return gaussian.reshape((4, N, M))
