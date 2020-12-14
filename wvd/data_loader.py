@@ -211,6 +211,7 @@ def load_commands():
     data = nds.timeseries.speech_commands.load()
 
     train_wavs, train_labels = data["wavs"], data["labels"]
+    train_wavs = train_wavs[:, ::2]
     train_wavs -= train_wavs.mean(1, keepdims=True)
     train_wavs /= train_wavs.max(1, keepdims=True) + 0.01
 

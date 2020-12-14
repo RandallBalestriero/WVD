@@ -15,60 +15,56 @@ ax3 = plt.subplot(133)
 
 
 MODELS = [
-    "morlet",
     "wvd",
     "sinc",
     "learnmorlet",
 ]  #'wvd', 'learnmorlet', 'melspec', 'sinc', 'morlet']
 LRS = [0.0002, 0.001, 0.005]
-RUNS = range(8)
+RUNS = range(1)
 
-name = "/mnt/docker_backup/rbalStuff/WVD/save_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}.npz"
+name = "data/resave_{}_gabor_{}_{}_{}_{}.npz"
 DNS = [
-    "onelayer_linear_scattering",
-    "onelayer_nonlinear_scattering",
-    "joint_linear_scattering",
+    "deep_net",
 ]
-HOP = 64  # OR 64 (dyni bird commands) 256 (mnist piece fsd) 512 (piece)
-BINS = 1024
-BS = 16
-J = 5
-Q = 16
-DATASET = "dyni"
-# .format(args.BS, args.option, args.J, args.Q, args.L,
-# args.bins, args.model, args.LR, args.dataset, args.run
+DATASET = "mnist"
+
 T = list()
 QQ = list()
-
+REPS = list()
 for DN in DNS:
     for RUN in RUNS:
         for lr in LRS:
             for c, model in enumerate(MODELS):
-                if "wvd" in model:
-                    L = 6
-                else:
-                    L = 0
-                filename = name.format(
-                    BS, model, J, Q, L, BINS, DN, lr, DATASET, HOP, RUN
-                )
+                filename = name.format(model, DN, DATASET, lr, RUN)
                 f = np.load(filename)
 
-                #            train = f['train'].squeeze().mean(1)
                 test = f["test"]
                 valid = f["valid"]
-                #                if valid[:, 1].max() < 0.1:
-                #                    T.append(np.nan)
-
-                #                else:
+                print(test)
                 T.append(test[valid[:, 1].argmax(), 1] * 100)
                 QQ.append(valid[:, 1].max())
                 print(test.shape, valid.shape, model, lr, DN)
-#                ax1.plot(valid[:, 1], c='C{}'.format(c), label=model)
-#                ax2.plot(test[:, 1], c='C{}'.format(c))
-#            ax3.plot(train, c='C{}'.format(c))
+                if RUN == 0 and lr == 0.001:
+                    REPS.append([f["rep"][0], f["rep"][valid[:, 1].argmax()]])
+
+
+print(REPS[0][0].shape)
+for i in range(10):
+    for k in range(3):
+        plt.subplot(4, 3, 1 + k)
+        plt.plot(f["wavs"][i])
+        plt.subplot(4, 3, 4 + k)
+        plt.specgram(f["wavs"][i], NFFT=512, noverlap=256)
+        plt.subplot(4, 3, 7 + k)
+        plt.imshow(np.log(REPS[k][0][i, 0]), aspect="auto")
+        plt.subplot(4, 3, 10 + k)
+        plt.imshow(np.log(REPS[k][1][i, 0]), aspect="auto")
+    plt.savefig("wvd{}.png".format(i))
+    plt.close()
+
 
 T = np.array(T).reshape((len(DNS), len(RUNS), len(LRS), len(MODELS)))
-T = np.nanstd(T, 1).transpose((0, 2, 1)).reshape((-1, len(LRS))).T
+T = np.mean(T, 1).transpose((0, 2, 1)).reshape((-1, len(LRS))).T
 # QQ = np.array(QQ).reshape((len(DNS), len(RUNS), len(LRS), len(MODELS)))
 
 # print(MODELS)

@@ -5,13 +5,27 @@ import symjax
 from wvd import banks
 
 
-def fourier_conv(signal, filters):
-    signal_w = T.fft.fft(signal)
-    zeros = T.zeros(
-        filters.shape[:-1] + (signal.shape[-1] - filters.shape[-1],)
+def fourier_conv(signal, filters, hop):
+
+    output = nn.layers.Conv1D(
+        signal,
+        filters.shape[0],
+        filters.shape[1],
+        W=T.real(filters[:, None]),
+        b=None,
+        inplace_W=True,
+        stride=hop,
     )
-    filters_w = T.fft.fft(T.concatenate([filters, zeros], -1))
-    return T.fft.ifft(signal_w * filters_w[None])
+    output += 1j * nn.layers.Conv1D(
+        signal,
+        filters.shape[0],
+        filters.shape[1],
+        W=T.imag(filters[:, None]),
+        b=None,
+        inplace_W=True,
+        stride=hop,
+    )
+    return output
 
 
 def transform(input, args):
@@ -44,13 +58,13 @@ def transform(input, args):
         filters = banks.morlet(
             args.J, args.Q, trainable="learn" in args.option
         )
-        output = T.abs(fourier_conv(input_r, filters)[..., :: args.hop])
+        output = T.abs(fourier_conv(input_r, filters, args.hop))
         output = T.expand_dims(output, 1)
 
     elif args.option == "sinc":
         N = 15 * 2 ** args.J
         sincs = banks.sinc(args.J, args.Q, N)
-        output = T.abs(fourier_conv(input_r, sincs)[..., :: args.hop])
+        output = T.abs(fourier_conv(input_r, sincs, args.hop))
         output = T.expand_dims(output, 1)
 
     elif "wvd" in args.option:
@@ -62,6 +76,7 @@ def transform(input, args):
             hop=args.hop,
             mode="same",
         )
+
         print("WVD", WVD)
 
         if args.wvdinit == "stftsmall":
@@ -75,11 +90,17 @@ def transform(input, args):
         else:
             filters = banks.gaussian2d(WVD.shape[2], args.J, args.Q)
 
-        print(filters)
-        output = fourier_conv(WVD, filters)
+        output = nn.layers.Conv2D(
+            WVD,
+            filters.shape[0],
+            filters.shape[1:],
+            W=filters[:, None],
+            inplace_W=True,
+            b=None,
+        )
         print("output", output)
-        output = T.abs(output.sum(2))
-        output = T.expand_dims(output, 1)
+        output = T.abs(output.transpose((0, 2, 1, 3)))
+        print(output)
 
     return output
 
@@ -135,28 +156,28 @@ def joint_linear_scattering(layer, deterministic, c):
 
 def deep_net(input, deterministic, c):
 
-    output = layers.Conv2D(input, 8, (3, 3), b=None, strides=(2, 3))
+    output = layers.Conv2D(input, 16, (3, 3), b=None, strides=(2, 3))
     output = layers.BatchNormalization(
         output, [1], deterministic=deterministic
     )
     output = nn.relu(output)
     print(output)
 
-    output = layers.Conv2D(output, 8, (3, 3), b=None, strides=(1, 2))
+    output = layers.Conv2D(output, 32, (3, 3), b=None, strides=(1, 2))
     output = layers.BatchNormalization(
         output, [1], deterministic=deterministic
     )
     output = nn.relu(output)
     print(output)
 
-    output = layers.Conv2D(output, 16, (3, 3), b=None, strides=(1, 2))
+    output = layers.Conv2D(output, 32, (3, 3), b=None, strides=(1, 2))
     output = layers.BatchNormalization(
         output, [1], deterministic=deterministic
     )
     output = nn.relu(output)
     print(output)
 
-    output = layers.Conv2D(output, 32, (3, 3), b=None, strides=(2, 2))
+    output = layers.Conv2D(output, 64, (3, 3), b=None, strides=(2, 2))
     output = layers.BatchNormalization(
         output, [1], deterministic=deterministic
     ).mean(-1)

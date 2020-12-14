@@ -108,7 +108,7 @@ def stft(width, J, Q, Fs):
 
 def gaussian2d(N, J, Q, init="gabor", window=6):
     # get the gaussian filters
-    M = 3 * 2 ** J
+    M = 2 ** J
     freq = T.linspace(0, np.pi, N)
     time = T.linspace(-3, 3, M)
     x, y = T.meshgrid(time, freq)
@@ -124,8 +124,8 @@ def gaussian2d(N, J, Q, init="gabor", window=6):
         mus = T.stack([positions, np.pi / scales], 1)
 
         eleven = 6 / M
-        sigma_t = T.Variable(eleven * scales, name="sigma_t")
-        sigma_f = T.Variable(1 / scales, name="sigma_t")
+        sigma_t = T.Variable(0.2 * eleven * scales, name="sigma_t")
+        sigma_f = T.Variable(0.2 * 1 / scales, name="sigma_t")
     else:
         # create the mean parameters
         scales = T.Variable(np.linspace(1 / 2 ** J, 1, J * Q), name="scales")

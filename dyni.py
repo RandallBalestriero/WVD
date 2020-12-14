@@ -47,7 +47,7 @@ parse.add_argument("--modes", type=int, default=1)
 args = parse.parse_args()
 
 if args.hop == 0:
-    args.hop = args.bins // 16
+    args.hop = args.bins // 4
 
 
 # DATASET LOADING
@@ -74,7 +74,6 @@ input = T.Placeholder((args.BS, len(wavs_train[0])), "float32")
 deterministic = T.Placeholder((), "bool")
 
 tf = utils.transform(input, args)
-
 output = utils.__dict__[args.model](tf, deterministic, Y)
 
 
@@ -119,6 +118,7 @@ for run in range(10):
             option="random_see_all",
         ):
             l.append(train(xx, xy, 0))
+            print(l[-1])
         print("FINALtrain", np.mean(l))
         TRAIN.append(np.array(l))
 
@@ -143,37 +143,37 @@ for run in range(10):
         print("FINALtest", TEST[-1])
 
         # save the file
-        if epoch == 0 or epoch == args.epochs - 1:
-            REP.append(get_repr(wavs_train[: args.BS]))
-            # save filter parameters
-            # if "wvd" in args.option:
-            #     FILTER.append(
-            #         [
-            #             layer[0]._mu.get({}),
-            #             layer[0]._sigma.get({}),
-            #             layer[0]._cor.get({}),
-            #             layer[0]._filter.get({}),
-            #         ]
-            #     )
-            # elif "sinc" == args.option:
-            #     FILTER.append(
-            #         [layer[0]._freq.get({}), layer[0]._filter.get({})]
-            #     )
-            # elif "learnmorlet" == args.option:
-            #     FILTER.append(
-            #         [
-            #             layer[0]._filters.get({}),
-            #             layer[0]._freqs.get({}),
-            #             layer[0]._scales.get({}),
-            #         ]
-            #     )
+        # if epoch == 0 or epoch == args.epochs - 1:
+        REP.append(get_repr(wavs_train[: args.BS]))
+        # save filter parameters
+        # if "wvd" in args.option:
+        #     FILTER.append(
+        #         [
+        #             layer[0]._mu.get({}),
+        #             layer[0]._sigma.get({}),
+        #             layer[0]._cor.get({}),
+        #             layer[0]._filter.get({}),
+        #         ]
+        #     )
+        # elif "sinc" == args.option:
+        #     FILTER.append(
+        #         [layer[0]._freq.get({}), layer[0]._filter.get({})]
+        #     )
+        # elif "learnmorlet" == args.option:
+        #     FILTER.append(
+        #         [
+        #             layer[0]._filters.get({}),
+        #             layer[0]._freqs.get({}),
+        #             layer[0]._scales.get({}),
+        #         ]
+        #     )
 
-            np.savez(
-                filename + str(run) + ".npz",
-                train=TRAIN,
-                test=TEST,
-                valid=VALID,
-                filter=FILTER,
-                rep=REP,
-                wavs=wavs_train[: args.BS],
-            )
+        np.savez(
+            filename + str(run) + ".npz",
+            train=TRAIN,
+            test=TEST,
+            valid=VALID,
+            filter=FILTER,
+            rep=REP,
+            wavs=wavs_train[: args.BS],
+        )
