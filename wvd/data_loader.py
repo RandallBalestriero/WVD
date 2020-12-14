@@ -2,6 +2,7 @@ import numpy as np
 import symjax
 from numpy_datasets.utils import train_test_split
 import numpy_datasets as nds
+from scipy.io.wavfile import read
 
 
 def get(name):
@@ -96,6 +97,16 @@ def get(name):
             labels_test,
         ) = load_vocal()
         Y = labels_train.max() + 1
+    elif name == "quebec":
+        (
+            wavs_train,
+            labels_train,
+            wavs_valid,
+            labels_valid,
+            wavs_test,
+            labels_test,
+        ) = load_quebec()
+        Y = labels_train.max() + 1
     elif name == "piece":
         (
             wavs_train,
@@ -174,6 +185,43 @@ def load_vocal():
     train, valid = train_test_split(*train, train_size=0.8, seed=1)
 
     return train[0], train[1], valid[0], valid[1], test[0], test[1]
+
+
+def load_quebec():
+    import glob
+
+    train_files = glob.glob(
+        "./NAS4/data_anatole/Quebec/wav/top5_data_aug_train/none/*.wav"
+    )
+    test_files = glob.glob(
+        "./NAS4/data_anatole/Quebec/wav/top5_data_aug_test/none/*.wav"
+    )
+    train_wavs = []
+    test_wavs = []
+    train_labels = []
+    test_labels = []
+    for name in train_files:
+        wav = read(name)[1]
+        train_wavs.append(wav)
+        train_labels.append(name.split("_")[-2])
+    for name in test_files:
+        wav = read(name)[1]
+        test_wavs.append(wav)
+        test_labels.append(name.split("_")[-2])
+
+    train_wavs = np.array(train_wavs)
+    test_wavs = np.array(test_wavs)
+    train_labels = np.array(train_labels)
+    test_labels = np.array(train_labels)
+
+    unique = np.unique(train_labels)
+    train_labels = np.argmax(unique == train_labels[:, None], 1)
+    test_labels = np.argmax(unique == test_labels[:, None], 1)
+
+    train, valid = train_test_split(
+        train_wavs, train_labels, train_size=0.8, seed=1
+    )
+    return train[0], train[1], valid[0], valid[1], test_wavs, test_labels
 
 
 def load_tut():
