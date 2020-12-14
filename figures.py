@@ -8,9 +8,16 @@ from scipy.signal import hilbert
 cmap = matplotlib.cm.get_cmap("viridis")
 
 
-def plot_gauss(X, Y, gaussians, name):
-    for gauss in gaussians:
-        plt.contour(X, Y, gauss, [0.05], linewidths=0.3)
+def plot_gauss(X, Y, gaussians, name, colors=None):
+    plt.figure(figsize=(4,6))
+    if colors is None:
+        colors = ["k"] * len(gaussians)
+    for c, gauss in zip(colors, gaussians):
+        plt.contour(X, Y, gauss, [0.05], linewidths=2, colors=c)
+    plt.tight_layout()
+    plt.yticks([0, gaussians.shape[1]], [r"$0$", r"$\pi$"], fontsize=24)
+    plt.xticks([])
+    # plt.xticks([0, gaussians.shape[0]], [r"$0$", r"$1$",], fontsize=24)
 
     plt.savefig(name + "_contours.png")
     plt.close()
@@ -143,17 +150,32 @@ def plot_usual_banks(J, Q):
 
 
 def plot_2d_banks(J, Q):
-    stft_small = banks.gaussian2d(1024, J, Q, init="stft", window=256).get()
-    stft_large = banks.gaussian2d(1024, J, Q, init="stft", window=1024).get()
-    gaussians = banks.gaussian2d(1024, J, Q).get()
+    # stft_small = banks.gaussian2d(1024, J, Q, init="stft", window=256).get()
+    # stft_large = banks.gaussian2d(1024, J, Q, init="stft", window=1024).get()
+    # gaussians = banks.gaussian2d(1024, J, Q).get()
+    examples = banks.gaussian_example(1024).get()
 
     X, Y = np.meshgrid(
-        np.arange(gaussians.shape[2]), np.arange(gaussians.shape[1])
+        np.arange(examples.shape[2]), np.arange(examples.shape[1])
     )
-
-    plot_gauss(X, Y, gaussians, "gabor")
-    plot_gauss(X, Y, stft_small, "stft_small")
-    plot_gauss(X, Y, stft_large, "stft_large")
+    # X, Y = np.meshgrid(
+    #     np.arange(gaussians.shape[2]), np.arange(gaussians.shape[1])
+    # )
+    # plot_gauss(X, Y, gaussians, "gabor")
+    # plot_gauss(X, Y, stft_small, "stft_small")
+    # plot_gauss(X, Y, stft_large, "stft_large")
+    plot_gauss(
+        X,
+        Y,
+        examples,
+        "examples",
+        [
+            [(243 / 255, 150 / 255, 68 / 255, 1)],
+            [(5 / 255, 51 / 255, 98 / 255, 1)],
+            [(43 / 255, 139 / 255, 148 / 255, 1)],
+            [(243 / 255, 77 / 255, 68 / 255, 1)],
+        ],
+    )
 
 
 if __name__ == "__main__":
