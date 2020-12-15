@@ -202,11 +202,11 @@ def load_quebec():
     test_labels = []
     for name in train_files:
         wav = read(name)[1]
-        train_wavs.append(wav)
+        train_wavs.append(wav[::10])
         train_labels.append(name.split("_")[-2])
     for name in test_files:
         wav = read(name)[1]
-        test_wavs.append(wav)
+        test_wavs.append(wav[::10])
         test_labels.append(name.split("_")[-2])
 
     train_wavs = np.array(train_wavs)
@@ -221,6 +221,7 @@ def load_quebec():
     train, valid = train_test_split(
         train_wavs, train_labels, train_size=0.8, seed=1
     )
+    print(train[0].shape)
     return train[0], train[1], valid[0], valid[1], test_wavs, test_labels
 
 

@@ -36,21 +36,25 @@ def sinc(J, Q, N):
 
 
 def morlet(J, Q, trainable=False):
+    print("in morlet")
     B = 6 * 2 ** J
+    print(J, Q, B)
     time = T.arange(B) - B // 2
-
+    print("time", time)
+    print(2 ** (np.arange(J * Q) / Q))
     scales = T.Variable(
         2 ** (np.arange(J * Q) / Q), name="scales", trainable=trainable,
     )
 
+    print("scales", scales)
     scales_ = scales[:, None]
 
+    print("scales", scales_)
     filters = symjax.tensor.signal.complex_morlet(
         scales_ * 2.5, 0.5 / scales_, time
     )
 
-    #    filters /= T.linalg.norm(filters, 2, 1, keepdims=True)
-
+    print("filters", filters)
     return filters[::-1]
 
 

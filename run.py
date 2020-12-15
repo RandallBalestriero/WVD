@@ -61,6 +61,8 @@ if args.hop == 0:
     Y,
 ) = data_loader.get(args.dataset)
 
+print("dataset loaded")
+print(Y)
 
 # COMPUTATIONAL MODEL
 
@@ -73,9 +75,11 @@ else:
 input = T.Placeholder((args.BS, len(wavs_train[0])), "float32")
 deterministic = T.Placeholder((), "bool")
 
+print("before transform")
+print(input)
 tf = utils.transform(input, args)
 output = utils.__dict__[args.model](tf, deterministic, Y)
-
+print("after transform")
 
 # create loss function and loss
 if args.dataset == "usc":
@@ -88,13 +92,14 @@ else:
     ).mean()
     accuracy = symjax.nn.losses.accuracy(label, output).mean()
 
-
+print("before adam")
 symjax.nn.optimizers.Adam(loss, args.lr)
-
+print("after adam")
 # create the functions
 train = symjax.function(
     input, label, deterministic, outputs=loss, updates=symjax.get_updates()
 )
+print("created train function")
 test = symjax.function(input, label, deterministic, outputs=[loss, accuracy])
 get_repr = symjax.function(input, outputs=tf)
 
@@ -117,6 +122,7 @@ for run in range(10):
             batch_size=args.BS,
             option="random_see_all",
         ):
+            print("starts!")
             l.append(train(xx, xy, 0))
             print(l[-1])
         print("FINALtrain", np.mean(l))

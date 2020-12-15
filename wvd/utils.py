@@ -55,10 +55,13 @@ def transform(input, args):
         output = T.abs(T.expand_dims(layer[-1], 1))
 
     elif "morlet" in args.option:
+        print("creating filter bank")
         filters = banks.morlet(
             args.J, args.Q, trainable="learn" in args.option
         )
+        print(filters)
         output = T.abs(fourier_conv(input_r, filters, args.hop))
+        print(output)
         output = T.expand_dims(output, 1)
 
     elif args.option == "sinc":
