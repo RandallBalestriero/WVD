@@ -145,6 +145,15 @@ def get(name):
         wavs_valid = np.random.randn(500, 2 ** 14)
         labels_valid = (np.random.randn(500) > 0).astype(int)
         Y = 2
+    wavs_train = wavs_train.astype("float32")
+    wavs_test = wavs_test.astype("float32")
+    wavs_valid = wavs_valid.astype("float32")
+    wavs_train -= wavs_train.mean(1, keepdims=True)
+    wavs_test -= wavs_test.mean(1, keepdims=True)
+    wavs_valid -= wavs_valid.mean(1, keepdims=True)
+    wavs_train /= wavs_train.max(1, keepdims=True)
+    wavs_test /= wavs_test.max(1, keepdims=True)
+    wavs_valid /= wavs_valid.max(1, keepdims=True)
     return (
         wavs_train,
         labels_train,
@@ -202,17 +211,17 @@ def load_quebec():
     test_labels = []
     for name in train_files:
         wav = read(name)[1]
-        train_wavs.append(wav[::10])
+        train_wavs.append(wav)
         train_labels.append(name.split("_")[-2])
     for name in test_files:
         wav = read(name)[1]
-        test_wavs.append(wav[::10])
+        test_wavs.append(wav)
         test_labels.append(name.split("_")[-2])
 
     train_wavs = np.array(train_wavs)
     test_wavs = np.array(test_wavs)
     train_labels = np.array(train_labels)
-    test_labels = np.array(train_labels)
+    test_labels = np.array(test_labels)
 
     unique = np.unique(train_labels)
     train_labels = np.argmax(unique == train_labels[:, None], 1)

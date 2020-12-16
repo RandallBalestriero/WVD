@@ -13,9 +13,9 @@ bs=16
 for LR in 0.001 0.005 0.0002
 do
     echo $LR
-    for model in deep_net
+    for model in onelayer_linear_scattering
     do
-       for option in morlet
+       for option in sinc morlet
        do
 	       echo $option
            GPU=${GPUS[i]}
